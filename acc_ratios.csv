@@ -1,0 +1,16 @@
+﻿Variable,Description
+netdebt_me,Net debt-to-price
+rd_sale,R&D-to-sales
+ebit_bev,Return on net operating assets
+ebit_sale,Profit margin
+ni_be,Return on equity
+niq_be,Quarterly return on equity
+ocf_at,Operating cash flow to assets
+gp_at,Gross profits-to-assets
+niq_at,Quarterly return on assets
+op_at,Operating profits-to-book assets
+rd_me,R&D-to-market
+be_me,Book-to-market equity
+div12m_me,Dividend yield
+ni_me,Earnings-to-price
+sale_me,Sales-to-market
