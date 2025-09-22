@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual env
+.venv/
+.env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs / temp
+*.log
+*.tmp
+
+# Large raw & derived data (do not version)
+# Raw source dumps
+ret_sample.csv
+Data/
+
+
+# Cleaned / model-ready artifacts
+cleaned_all.parquet
+training_matrix.parquet
+*.parquet
+*.feather
+*.arrow
+
+# QA outputs (keep stats tracked for reproducibility)
+cleaning/qa_summary.json
+cleaning/status.json
+
+# Cache
+*.pickle
+*.joblib
+
+# Compressed splits
+*.7z
+*.zip
+*.gz
+*.bz2
+
+# If you later adopt DVC, allow its metafiles
+!.dvc/
+*.dvc
