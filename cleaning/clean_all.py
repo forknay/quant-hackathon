@@ -151,7 +151,11 @@ def main():
                 detected_date_col = 'date'
             else:
                 raise KeyError(f"Date column '{DATE_COL}' not found. Columns: {list(chunk.columns)[:20]}")
-        chunk[detected_date_col] = pd.to_datetime(chunk[detected_date_col])
+        chunk[detected_date_col] = pd.to_datetime(
+            chunk[detected_date_col].astype("Int64").astype(str),
+            format="%Y%m%d",
+            errors="coerce"
+        )
         # Ensure ID columns remain string (prevents pyarrow bytes/float conversion error)
         for idc in ID_COLS:
             if idc in chunk.columns:
