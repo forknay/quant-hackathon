@@ -199,16 +199,27 @@ def main():
                 stats = profile.get(col, {})
                 cat = cat_map[col]
                 before = chunk[col]
+                before_notna = before.notna()
+
+                # Winsorize and count only real clips (exclude NaNs)
                 after = winsorize(before, cat, stats)
-                clipped_counts[col] += (before != after).sum()
+                clipped_counts[col] += (before_notna & before.ne(after)).sum()
+
+                # Transform
                 after = transform(after, cat)
-                miss_mask = after.isna()
-                missing_counts[col] += miss_mask.sum()
+
+                # Missing counting based on pre-impute state
+                missing_counts[col] += (~before_notna).sum()
+                non_null_counts[col] += before_notna.sum()
+
+                # Optional flags (post-transform NaNs are fine)
                 if ADD_MISSING_FLAGS:
+                    miss_mask = after.isna()
                     missing_flags[f"{col}_was_missing"] = miss_mask.astype(int)
+
                 fill_val = stats.get('median', 0.0)
-                non_null_counts[col] += after.notna().sum()
                 chunk[col] = after.fillna(fill_val)
+
         else:
             # Fast path for first months to reduce overhead
             if numeric:
@@ -250,12 +261,14 @@ def main():
 
     qa = {}
     for col in sorted(feature_set):
-        nn = non_null_counts.get(col, 0) or 1
+        nn = int(non_null_counts.get(col, 0))
+        mm = int(missing_counts.get(col, 0))
+        total = nn + mm
         qa[col] = {
             'clipped': int(clipped_counts.get(col, 0)),
-            'clipped_pct_non_null': float(clipped_counts.get(col, 0) / nn),
-            'missing': int(missing_counts.get(col, 0)),
-            'missing_rate': float(missing_counts.get(col, 0) / nn)
+            'clipped_pct_non_null': float(clipped_counts.get(col, 0) / nn) if nn else 0.0,
+            'missing': mm,
+            'missing_rate': float(mm / total) if total else 0.0
         }
     summary = {
         'months_processed': months_processed,
