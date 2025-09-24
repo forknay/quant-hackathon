@@ -8,8 +8,14 @@ __pycache__/
 .venv/
 .env/
 
+# data files
+*.parquet
+
 # Jupyter
 .ipynb_checkpoints/
+
+# add specificdata files like sectorinfo.csv
+sectorinfo.csv
 
 # OS
 .DS_Store
