@@ -1,0 +1,18 @@
+{
+  "status": "success",
+  "total_candidates": 34888,
+  "long_candidates": 17444,
+  "short_candidates": 17444,
+  "unique_dates": 218,
+  "date_range": {
+    "start": "2006-04-28 00:00:00",
+    "end": "2025-06-30 00:00:00"
+  },
+  "composite_score_stats": {
+    "mean": 0.13015718738752238,
+    "std": 0.4297374985656517,
+    "min": -0.4027280295943033,
+    "max": 10.003333899385455
+  },
+  "warnings": []
+}
