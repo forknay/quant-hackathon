@@ -4,7 +4,7 @@ from joblib import Parallel, delayed
 
 from config import (
     INPUT_PARQUET, INPUT_DAYS_DIR, RESULTS_DIR,
-    UTILITIES_GICS_PREFIX,
+    SECTOR_NAME, GICS_PREFIX,
     MA_WINDOW, MOM_LAG, GARCH_PARAMS, SELECTION_PARAMS,
     COL_DATE, COL_GVKEY, COL_IID, COL_GICS, COL_PRICE, COL_RET_RAW,
     N_JOBS, BATCH_SIZE
@@ -13,38 +13,38 @@ from indicators import compute_indicators
 from candidate_selection import aggregate_monthly_candidates, validate_candidate_selection
 from sector_mapper import SectorMapper
 
-# Required columns for indicators computation
-USE_COLS = [COL_DATE, COL_GVKEY, COL_IID, COL_PRICE, COL_RET_RAW, 'id']  # Added 'id' for sector mapping
+# Required columns for computing indicators
+USE_COLS = [COL_DATE, COL_GVKEY, COL_IID, COL_PRICE, COL_RET_RAW, 'id']
 
-def load_utilities_dataframe() -> pd.DataFrame:
+def load_sector_dataframe() -> pd.DataFrame:
     """
-    Load utilities data using the efficient SectorMapper strategy.
+    Load sector data using the efficient SectorMapper strategy.
     
     This replaces the old approach with:
-    1. Efficient utilities identification from sectorinfo
+    1. Efficient sector identification from sectorinfo using GICS prefix
     2. Direct filtering of main parquet data  
     3. Proper GICS sector information
     
     Returns:
-        DataFrame with utilities companies data, properly filtered and cleaned
+        DataFrame with sector companies data, properly filtered and cleaned
     """
-    print("=== Loading Utilities Data with SectorMapper ===")
+    print(f"=== Loading {SECTOR_NAME.title()} Data with SectorMapper ===")
     
-    # Initialize sector mapper
+    # Initialize sector mapper with current configuration
     mapper = SectorMapper(
-        sector_csv_path="../../sectorinfo.csv",
-        main_parquet_path=INPUT_PARQUET if INPUT_PARQUET.startswith('/') else f"../../{INPUT_PARQUET}",
-        cache_dir="cache"
+        gics_prefix=GICS_PREFIX,
+        sector_name=SECTOR_NAME,
+        cache_dir="cache",
     )
     
-    # Load utilities data efficiently
-    utilities_data = mapper.load_utilities_data(required_columns=USE_COLS)  # Remove + ['gics'] since it's not in main parquet
+    # Load sector data efficiently
+    sector_data = mapper.load_sector_data(required_columns=USE_COLS)  # Remove + ['gics'] since it's not in main parquet
     
-    print(f"✓ Loaded {len(utilities_data):,} utilities observations")
-    print(f"✓ Covering {utilities_data['id'].nunique():,} unique utilities companies")
+    print(f"✓ Loaded {len(sector_data):,} {SECTOR_NAME} observations")
+    print(f"✓ Covering {sector_data['id'].nunique():,} unique {SECTOR_NAME} companies")
     
     # Rename columns to match expected format (avoid gics duplication)
-    utilities_data = utilities_data.rename(columns={
+    sector_data = sector_data.rename(columns={
         COL_DATE: COL_DATE,  # Keep as-is
         'prc': COL_PRICE,
         'stock_ret': COL_RET_RAW,
@@ -53,58 +53,58 @@ def load_utilities_dataframe() -> pd.DataFrame:
     })
     
     # Use gics_str as our GICS column (it's the string version we want)
-    if 'gics_str' in utilities_data.columns:
-        utilities_data[COL_GICS] = utilities_data['gics_str']
-        utilities_data = utilities_data.drop(['gics', 'gics_str'], axis=1, errors='ignore')  # Clean up duplicates
+    if 'gics_str' in sector_data.columns:
+        sector_data[COL_GICS] = sector_data['gics_str']
+        sector_data = sector_data.drop(['gics', 'gics_str'], axis=1, errors='ignore')  # Clean up duplicates
     
     # Data type optimization and cleaning
     print("  - Optimizing data types...")
-    utilities_data[COL_GVKEY] = utilities_data[COL_GVKEY].astype("category")
-    utilities_data[COL_IID] = utilities_data[COL_IID].astype("category")
+    sector_data[COL_GVKEY] = sector_data[COL_GVKEY].astype("category")
+    sector_data[COL_IID] = sector_data[COL_IID].astype("category")
     
     # Ensure date is datetime
-    if not pd.api.types.is_datetime64_any_dtype(utilities_data[COL_DATE]):
-        utilities_data[COL_DATE] = pd.to_datetime(utilities_data[COL_DATE], errors="coerce")
+    if not pd.api.types.is_datetime64_any_dtype(sector_data[COL_DATE]):
+        sector_data[COL_DATE] = pd.to_datetime(sector_data[COL_DATE], errors="coerce")
 
     # Price and return data cleaning
-    utilities_data[COL_PRICE] = pd.to_numeric(utilities_data[COL_PRICE], errors="coerce").abs()
-    utilities_data[COL_RET_RAW] = pd.to_numeric(utilities_data[COL_RET_RAW], errors="coerce")
+    sector_data[COL_PRICE] = pd.to_numeric(sector_data[COL_PRICE], errors="coerce").abs()
+    sector_data[COL_RET_RAW] = pd.to_numeric(sector_data[COL_RET_RAW], errors="coerce")
 
     # Handle potential return scaling issues (same logic as before)
-    if utilities_data[COL_RET_RAW].abs().median() > 0.5 or utilities_data[COL_RET_RAW].abs().quantile(0.99) > 5:
+    if sector_data[COL_RET_RAW].abs().median() > 0.5 or sector_data[COL_RET_RAW].abs().quantile(0.99) > 5:
         print("  - Rebuilding returns from prices (detected scaling issues)...")
-        utilities_data[COL_RET_RAW] = utilities_data.sort_values([COL_GVKEY, COL_IID, COL_DATE]) \
+        sector_data[COL_RET_RAW] = sector_data.sort_values([COL_GVKEY, COL_IID, COL_DATE]) \
                             .groupby([COL_GVKEY, COL_IID], observed=True)[COL_PRICE] \
                             .pct_change()
     
     # Clean data: remove invalid rows
-    initial_count = len(utilities_data)
-    utilities_data = utilities_data.dropna(subset=[COL_DATE, COL_GVKEY, COL_IID, COL_PRICE])
-    utilities_data = utilities_data.drop_duplicates(subset=[COL_DATE, COL_GVKEY, COL_IID]) \
+    initial_count = len(sector_data)
+    sector_data = sector_data.dropna(subset=[COL_DATE, COL_GVKEY, COL_IID, COL_PRICE])
+    sector_data = sector_data.drop_duplicates(subset=[COL_DATE, COL_GVKEY, COL_IID]) \
            .sort_values([COL_GVKEY, COL_IID, COL_DATE])
     
-    print(f"  - Data cleaning: {initial_count:,} → {len(utilities_data):,} rows")
+    print(f"  - Data cleaning: {initial_count:,} → {len(sector_data):,} rows")
     
     # Add convenience partitions
-    utilities_data["year"] = utilities_data[COL_DATE].dt.year.astype("int16")
-    utilities_data["month"] = utilities_data[COL_DATE].dt.month.astype("int8")
+    sector_data["year"] = sector_data[COL_DATE].dt.year.astype("int16")
+    sector_data["month"] = sector_data[COL_DATE].dt.month.astype("int8")
     
     # Validation summary
-    print("=== Utilities Data Summary ===")
-    print(f"  - Total observations: {len(utilities_data):,}")
-    print(f"  - Unique companies: {utilities_data[COL_GVKEY].nunique():,}")
-    print(f"  - Date range: {utilities_data[COL_DATE].min()} to {utilities_data[COL_DATE].max()}")
+    print(f"=== {SECTOR_NAME.title()} Data Summary ===")
+    print(f"  - Total observations: {len(sector_data):,}")
+    print(f"  - Unique companies: {sector_data[COL_GVKEY].nunique():,}")
+    print(f"  - Date range: {sector_data[COL_DATE].min()} to {sector_data[COL_DATE].max()}")
     
     # Debug: print actual columns to see what's available
-    print(f"  - Available columns: {list(utilities_data.columns)}")
+    print(f"  - Available columns: {list(sector_data.columns)}")
     
-    if COL_GICS in utilities_data.columns:
-        gics_values = utilities_data[COL_GICS].dropna().unique()
+    if COL_GICS in sector_data.columns:
+        gics_values = sector_data[COL_GICS].dropna().unique()
         print(f"  - GICS codes found: {sorted(gics_values.tolist())}")
     else:
         print(f"  - GICS column '{COL_GICS}' not found after mapping")
     
-    return utilities_data
+    return sector_data
 
 def _process_one(group_key_df):
     """Process indicators for one (gvkey, iid) group."""
@@ -138,33 +138,33 @@ def _process_one(group_key_df):
 
 def run():
     """
-    Enhanced utilities pipeline with sector mapping and candidate selection.
+    Enhanced sector pipeline with sector mapping and candidate selection.
     
     Steps:
-    1. Load utilities data using SectorMapper (efficient sector filtering)
-    2. Compute indicators for all utilities stocks (MA, MOM, GARCH)  
+    1. Load sector data using SectorMapper (efficient sector filtering)
+    2. Compute indicators for all sector stocks (MA, MOM, GARCH)  
     3. Apply candidate selection with composite scoring
     4. Save both indicators and selected candidates with validation
     """
     print("="*80)
-    print("ENHANCED UTILITIES PIPELINE WITH SECTOR MAPPING")
+    print(f"ENHANCED {SECTOR_NAME.upper()} PIPELINE WITH SECTOR MAPPING")
     print("="*80)
     
     try:
-        # Step 1: Load utilities data using SectorMapper
-        print("\n[STEP 1] Loading utilities data with sector mapping...")
-        df = load_utilities_dataframe()
+        # Step 1: Load sector data using SectorMapper
+        print(f"\n[STEP 1] Loading {SECTOR_NAME} data with sector mapping...")
+        df = load_sector_dataframe()
         
         if len(df) == 0:
-            print("❌ No utilities data found! Check sector mapping.")
+            print(f"❌ No {SECTOR_NAME} data found! Check sector mapping.")
             return
         
         print(f"✓ Loaded {len(df):,} rows for {df.groupby([COL_GVKEY, COL_IID]).ngroups:,} unique securities")
         
         # Step 2: Compute indicators for all securities
-        print(f"\n[STEP 2] Computing indicators (MA, MOM, GARCH) for all utilities...")
+        print(f"\n[STEP 2] Computing indicators (MA, MOM, GARCH) for all {SECTOR_NAME}...")
         groups = list(df.groupby([COL_GVKEY, COL_IID], sort=False))
-        print(f"  - Processing {len(groups):,} unique utilities companies...")
+        print(f"  - Processing {len(groups):,} unique {SECTOR_NAME} companies...")
         
         # Process in parallel
         indicator_results = Parallel(n_jobs=N_JOBS, prefer="processes", batch_size=BATCH_SIZE)(
@@ -196,7 +196,7 @@ def run():
         sector_config = {
             'ma_window': MA_WINDOW,
             'mom_lag': MOM_LAG,
-            'gics_prefix': UTILITIES_GICS_PREFIX
+            'gics_prefix': GICS_PREFIX # Changed from UTILITIES_GICS_PREFIX to GICS_PREFIX
         }
         
         # Apply monthly candidate selection
@@ -255,10 +255,10 @@ def run():
         
         # Final summary
         print("\n" + "="*80)
-        print("✅ ENHANCED UTILITIES PIPELINE COMPLETED SUCCESSFULLY!")
+        print(f"✅ ENHANCED {SECTOR_NAME.upper()} PIPELINE COMPLETED SUCCESSFULLY!")
         print("="*80)
         print("Results Summary:")
-        print(f"  - Utilities companies processed: {df[COL_GVKEY].nunique():,}")
+        print(f"  - {SECTOR_NAME.title()} companies processed: {df[COL_GVKEY].nunique():,}")
         print(f"  - Total indicators computed: {len(all_indicators):,}")
         if not selected_candidates.empty:
             print(f"  - Candidates selected: {len(selected_candidates):,}")
@@ -274,22 +274,22 @@ def run():
 
 def test_sector_mapping_first():
     """Test sector mapping before running full pipeline."""
-    print("Testing sector mapping functionality first...")
+    print(f"Testing {SECTOR_NAME} sector mapping functionality first...")
     
     from sector_mapper import test_sector_mapping
-    success = test_sector_mapping()
+    success = test_sector_mapping(gics_prefix=GICS_PREFIX, sector_name=SECTOR_NAME)
     
     if success:
-        print("\n✅ Sector mapping test passed! Ready to run full pipeline.")
+        print(f"\n✅ {SECTOR_NAME.title()} sector mapping test passed! Ready to run full pipeline.")
         return True
     else:
-        print("\n❌ Sector mapping test failed! Please fix issues before running pipeline.")
+        print(f"\n❌ {SECTOR_NAME.title()} sector mapping test failed! Please fix issues before running pipeline.")
         return False
 
 if __name__ == "__main__":
     # Test sector mapping first, then run full pipeline
     if test_sector_mapping_first():
-        print("\nStarting full utilities pipeline...")
+        print(f"\nStarting full {SECTOR_NAME} pipeline...")
         run()
     else:
         print("Skipping pipeline due to sector mapping issues.")
