@@ -49,3 +49,5 @@ cleaning/status.json
 # If you later adopt DVC, allow its metafiles
 !.dvc/
 *.dvc
+
+*.pkl
