@@ -57,3 +57,7 @@ cleaning/status.json
 *.dvc
 
 *.pkl
+
+# Ignore huge CSVs
+Global (ex Canada and US) Company Name Merge by DataDate-GVKEY-IID.csv
+North America Company Name Merge by DataDate-GVKEY-IID.csv
