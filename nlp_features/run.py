@@ -10,6 +10,8 @@ import torch
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from transformers import AutoTokenizer
+from tqdm import tqdm
+import time
 
 from . import config as C
 from .dataset import read_textdata_parquets, FinBertChunkDataset, FinBertChunkIterableDataset
@@ -37,6 +39,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--reuse-pca", action="store_true")
     p.add_argument("--limit-docs", type=int, default=0)
     p.add_argument("--streaming", action="store_true", help="Use iterable dataset to reduce RAM usage")
+    p.add_argument("--fp16", action="store_true", help="Use mixed precision (fp16) for faster inference")
+    p.add_argument("--workers", type=int, default=0, help="DataLoader workers for parallel tokenization")
     return p.parse_args()
 
 
@@ -56,7 +60,11 @@ def main():
         ds = FinBertChunkIterableDataset(docs, tokenizer, max_len=args.max_tokens, doc_stride=args.doc_stride)
     else:
         ds = FinBertChunkDataset(docs, tokenizer, max_len=args.max_tokens, doc_stride=args.doc_stride)
-    dl = DataLoader(ds, batch_size=args.batch_size, shuffle=False, num_workers=C.NUM_WORKERS, pin_memory=True)
+    
+    # Use safer DataLoader settings and user-specified workers
+    num_workers = args.workers if args.workers > 0 else 0
+    dl = DataLoader(ds, batch_size=args.batch_size, shuffle=False, num_workers=num_workers, 
+                    pin_memory=torch.cuda.is_available(), persistent_workers=False)
 
     model = FinBertLightning(args.model)
     trainer = pl.Trainer(accelerator="auto", devices="auto", logger=False, enable_checkpointing=False)
@@ -72,16 +80,52 @@ def main():
     except Exception:
         dev_name = str(device)
     print(f"Using device: {dev_name}")
+    
+    # Enable mixed precision if requested and supported
+    use_autocast = args.fp16 and device.type == "cuda"
+    if use_autocast:
+        print("Using mixed precision (fp16) for faster inference")
+        # Enable TF32 for even faster matmul on Ampere+ GPUs
+        if hasattr(torch.backends.cuda.matmul, 'allow_tf32'):
+            torch.backends.cuda.matmul.allow_tf32 = True
     model.to(device)
+    
+    # Estimate total batches for progress bar
+    if args.streaming:
+        # For streaming, we can't know exact count, so estimate from doc count and avg chunks
+        est_chunks_per_doc = 4  # rough estimate
+        est_total_batches = (len(docs) * est_chunks_per_doc) // args.batch_size
+        progress_desc = "Processing (estimated)"
+    else:
+        est_total_batches = len(dl)
+        progress_desc = "Processing batches"
+    
+    print(f"Starting inference on ~{est_total_batches} batches...")
+    start_time = time.time()
+    
     with torch.no_grad():
-        for batch in dl:
+        pbar = tqdm(dl, desc=progress_desc, unit="batch")
+        for batch_idx, batch in enumerate(pbar):
             input_ids, attention_mask, doc_idx, _ = batch
-            input_ids = input_ids.to(device)
-            attention_mask = attention_mask.to(device)
-            out = model(input_ids=input_ids, attention_mask=attention_mask)
+            input_ids = input_ids.to(device, non_blocking=True)
+            attention_mask = attention_mask.to(device, non_blocking=True)
+            
+            # Use autocast for mixed precision if enabled
+            if use_autocast:
+                with torch.autocast(device_type="cuda", dtype=torch.float16):
+                    out = model(input_ids=input_ids, attention_mask=attention_mask)
+            else:
+                out = model(input_ids=input_ids, attention_mask=attention_mask)
+            
             probs_chunks.append(out["probs"].cpu().numpy())
             cls_chunks.append(out["cls"].cpu().numpy())
             doc_indices.extend(doc_idx.tolist())
+            
+            # Update progress with speed info every 10 batches
+            if (batch_idx + 1) % 10 == 0:
+                elapsed = time.time() - start_time
+                speed = (batch_idx + 1) / elapsed
+                pbar.set_postfix({"batch/s": f"{speed:.1f}", "GPU_mem": f"{torch.cuda.memory_reserved()/1e9:.1f}GB" if device.type == "cuda" else "N/A"})
 
     bucket: Dict[int, List[Dict[str, np.ndarray]]] = {}
     for p, c, di in zip(probs_chunks, cls_chunks, doc_indices):
