@@ -12,7 +12,7 @@ import pytorch_lightning as pl
 from transformers import AutoTokenizer
 
 from . import config as C
-from .dataset import read_textdata_parquets, FinBertChunkDataset
+from .dataset import read_textdata_parquets, FinBertChunkDataset, FinBertChunkIterableDataset
 from .model import FinBertLightning
 from .aggregate import (
     aggregate_filing,
@@ -36,6 +36,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--pca-model", type=str, default=C.PCA_MODEL_NAME)
     p.add_argument("--reuse-pca", action="store_true")
     p.add_argument("--limit-docs", type=int, default=0)
+    p.add_argument("--streaming", action="store_true", help="Use iterable dataset to reduce RAM usage")
     return p.parse_args()
 
 
@@ -51,7 +52,10 @@ def main():
     meta = docs[[C.COL_GVKEY, C.COL_DATE, "length_words"]].reset_index(drop=True)
 
     tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=True)
-    ds = FinBertChunkDataset(docs, tokenizer, max_len=args.max_tokens, doc_stride=args.doc_stride)
+    if args.streaming:
+        ds = FinBertChunkIterableDataset(docs, tokenizer, max_len=args.max_tokens, doc_stride=args.doc_stride)
+    else:
+        ds = FinBertChunkDataset(docs, tokenizer, max_len=args.max_tokens, doc_stride=args.doc_stride)
     dl = DataLoader(ds, batch_size=args.batch_size, shuffle=False, num_workers=C.NUM_WORKERS, pin_memory=True)
 
     model = FinBertLightning(args.model)
@@ -63,6 +67,11 @@ def main():
 
     model.eval()
     device = trainer.strategy.root_device if hasattr(trainer, "strategy") else torch.device("cpu")
+    try:
+        dev_name = torch.cuda.get_device_name(device) if device.type == "cuda" else str(device)
+    except Exception:
+        dev_name = str(device)
+    print(f"Using device: {dev_name}")
     model.to(device)
     with torch.no_grad():
         for batch in dl:

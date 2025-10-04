@@ -6,7 +6,7 @@ from typing import List, Tuple
 
 import pandas as pd
 import torch
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, IterableDataset
 from transformers import AutoTokenizer
 
 from . import config as C
@@ -79,6 +79,51 @@ class FinBertChunkDataset(Dataset):
 
 	def __getitem__(self, idx: int):
 		return self.chunks[idx]
+
+	def doc_count(self) -> int:
+		return len(self.docs_meta)
+
+
+class FinBertChunkIterableDataset(IterableDataset):
+	"""Streaming variant that does NOT precompute/store all chunks in memory.
+
+	Iterates over docs, tokenizes with overflow, and yields per-chunk tensors on the fly.
+	Each yielded sample matches the tuple shape used by FinBertChunkDataset:
+	    (input_ids: Tensor[512], attention_mask: Tensor[512], doc_index: int, chunk_index: int)
+
+	This keeps RAM bounded for large corpora.
+	"""
+
+	def __init__(self, docs: pd.DataFrame, tokenizer: AutoTokenizer, max_len: int = C.MAX_TOKENS, doc_stride: int = C.DOC_STRIDE):
+		self.tokenizer = tokenizer
+		self.max_len = max_len
+		self.doc_stride = doc_stride
+		# Keep minimal per-doc meta to reconstruct gvkey/date ordering outside
+		self.docs_meta: List[Tuple[str, pd.Timestamp]] = []
+		for _, row in docs.iterrows():
+			self.docs_meta.append((str(row[C.COL_GVKEY]), pd.Timestamp(row[C.COL_DATE])))
+		# Store only the text column as a list to avoid DataFrame overhead during iteration
+		self._texts: List[str] = docs[C.COL_TEXT].tolist()
+
+	def __iter__(self):
+		for doc_index, text in enumerate(self._texts):
+			enc = self.tokenizer(
+				text,
+				truncation=True,
+				max_length=self.max_len,
+				stride=self.doc_stride,
+				return_overflowing_tokens=True,
+				padding="max_length",
+				return_tensors="pt",
+			)
+			num_chunks = enc["input_ids"].size(0)
+			for chunk_idx in range(num_chunks):
+				yield (
+					enc["input_ids"][chunk_idx],
+					enc["attention_mask"][chunk_idx],
+					doc_index,
+					chunk_idx,
+				)
 
 	def doc_count(self) -> int:
 		return len(self.docs_meta)
