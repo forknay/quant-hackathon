@@ -10,7 +10,7 @@
       "ml_score_normalized": 0.25026681748357865,
       "combined_score": 0.7001067269934315,
       "candidate_type": "long",
-      "portfolio_weight": 0.2
+      "portfolio_weight": 0.5542648444235547
     },
     {
       "company_id": "comp_100968_01W",
@@ -22,7 +22,7 @@
       "ml_score_normalized": 1.0,
       "combined_score": 0.40259833789116545,
       "candidate_type": "long",
-      "portfolio_weight": 0.2
+      "portfolio_weight": 0.31873155407992837
     },
     {
       "company_id": "comp_204002_01W",
@@ -34,7 +34,7 @@
       "ml_score_normalized": 0.34455473132391207,
       "combined_score": 0.14059108199121298,
       "candidate_type": "long",
-      "portfolio_weight": 0.2
+      "portfolio_weight": 0.11130402149089762
     },
     {
       "company_id": "comp_209280_01W",
@@ -46,7 +46,7 @@
       "ml_score_normalized": 0.034111499314704884,
       "combined_score": 0.013644599725881954,
       "candidate_type": "long",
-      "portfolio_weight": 0.2
+      "portfolio_weight": 0.010802241505042122
     },
     {
       "company_id": "comp_200084_01W",
@@ -58,7 +58,7 @@
       "ml_score_normalized": 0.0,
       "combined_score": 0.006185959046678943,
       "candidate_type": "long",
-      "portfolio_weight": 0.2
+      "portfolio_weight": 0.004897338500577147
     }
   ],
   "short_positions": [
@@ -72,7 +72,7 @@
       "ml_score_normalized": 0.0,
       "combined_score": 0.6,
       "candidate_type": "short",
-      "portfolio_weight": -0.3333333333333333
+      "portfolio_weight": -0.4440377198201086
     },
     {
       "company_id": "comp_316044_01W",
@@ -84,7 +84,7 @@
       "ml_score_normalized": 1.0,
       "combined_score": 0.4,
       "candidate_type": "short",
-      "portfolio_weight": -0.3333333333333333
+      "portfolio_weight": -0.29602514654673906
     },
     {
       "company_id": "comp_293815_01W",
@@ -96,7 +96,7 @@
       "ml_score_normalized": 0.6841532684787515,
       "combined_score": 0.35123655765793005,
       "candidate_type": "short",
-      "portfolio_weight": -0.3333333333333333
+      "portfolio_weight": -0.25993713363315224
     }
   ],
   "summary": {
@@ -115,7 +115,9 @@
       0.4,
       0.35123655765793005
     ],
-    "creation_date": "2025-10-04T15:29:00.213703"
+    "long_weights_sum": 1.0,
+    "short_weights_sum": -0.9999999999999998,
+    "creation_date": "2025-10-04T16:57:53.321828"
   },
   "parameters": {
     "algo_weight": 0.6,
@@ -126,6 +128,6 @@
     "target_year": 2018,
     "target_month": 1,
     "pipeline_version": "1.0",
-    "creation_timestamp": "2025-10-04T15:29:00.214704"
+    "creation_timestamp": "2025-10-04T16:57:53.321828"
   }
 }
