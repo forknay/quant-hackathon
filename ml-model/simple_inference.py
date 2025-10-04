@@ -157,7 +157,7 @@ class StockInference:
                     
                     # Skip if too many missing values
                     missing_ratio = (recent_data == -1234).sum() / recent_data.size
-                    if missing_ratio > 0.5:  # Skip if > 50% missing
+                    if missing_ratio > 0.75:  # Skip if > 75% missing (increased threshold)
                         skipped += 1
                         if not return_all:
                             continue
