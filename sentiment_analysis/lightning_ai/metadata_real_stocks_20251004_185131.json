@@ -1,34 +1,30 @@
 {
-  "timestamp": "20251004_183316",
+  "timestamp": "20251004_185131",
   "input_stocks": [
     "1004:01",
     "1045:01",
-    "1050:01",
-    "1075:01",
-    "1076:01"
+    "1050:01"
   ],
-  "total_texts": 34,
-  "unique_stocks": 5,
+  "total_texts": 21,
+  "unique_stocks": 3,
   "texts_per_stock": {
     "1004:01": 2,
     "1045:01": 8,
-    "1050:01": 11,
-    "1075:01": 5,
-    "1076:01": 8
+    "1050:01": 11
   },
   "text_types": {
-    "rf": 17,
-    "mgmt": 17
+    "rf": 12,
+    "mgmt": 9
   },
   "years_covered": [
     2023,
     2025
   ],
-  "avg_text_length": 33728.14705882353,
+  "avg_text_length": 27895.04761904762,
   "text_length_stats": {
     "min": 1001,
-    "max": 50000,
-    "median": 41679
+    "max": 49997,
+    "median": 29891
   },
   "processing_config": {
     "text_years": [

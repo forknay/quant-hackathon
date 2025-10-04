@@ -1,0 +1,12 @@
+{
+  "files.watcherExclude": {
+    "**/TextData/**": true,
+    "**/*.parquet": true,
+    "**/Data/**": true
+  },
+  "search.exclude": {
+    "**/TextData/**": true,
+    "**/*.parquet": true,
+    "**/Data/**": true
+  }
+}

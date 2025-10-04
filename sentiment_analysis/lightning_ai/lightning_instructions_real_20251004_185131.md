@@ -1,13 +1,13 @@
 # Real Stock Sentiment Analysis - Lightning.ai Processing
 
-**Generated:** 2025-10-04 18:35:43
-**Input Stocks:** 1004:01, 1045:01, 1050:01, 1075:01, 1076:01
-**Total Texts:** 34 real SEC filing texts
+**Generated:** 2025-10-04 18:51:31
+**Input Stocks:** 1004:01, 1045:01, 1050:01
+**Total Texts:** 21 real SEC filing texts
 
 ## Processing Steps
 
 ### 1. Upload Files to Lightning.ai Studio
-- `finbert_real_stocks_20251004_183543.csv` (main input data)
+- `finbert_real_stocks_20251004_185131.csv` (main input data)
 - `process_sentiment_rankings.py` (sentiment ranking processor)
 
 ### 2. Install Dependencies
@@ -31,8 +31,8 @@ sentiment_pipeline = pipeline(
 )
 
 # Load real stock data
-df = pd.read_csv('finbert_real_stocks_20251004_183543.csv')
-print(f"Processing {len(df)} texts from real stocks: 1004:01, 1045:01, 1050:01, 1075:01, 1076:01")
+df = pd.read_csv('finbert_real_stocks_20251004_185131.csv')
+print(f"Processing {len(df)} texts from real stocks: 1004:01, 1045:01, 1050:01")
 
 # Process each text through FinBERT
 results = []
@@ -71,7 +71,7 @@ for idx, row in df.iterrows():
 
 # Save FinBERT results
 results_df = pd.DataFrame(results)
-results_df.to_csv('finbert_results_real_stocks_20251004_183543.csv', index=False)
+results_df.to_csv('finbert_results_real_stocks_20251004_185131.csv', index=False)
 print(f"\n✅ FinBERT processing complete! Results saved.")
 print(f"📊 Processed {len(results_df)} texts from {results_df['stock_identifier'].nunique()} stocks")
 ```

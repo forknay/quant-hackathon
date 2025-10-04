@@ -16,8 +16,8 @@ def process_sentiment_rankings():
     print("=" * 60)
     
     # Load FinBERT results
-    results_file = "finbert_results_real_stocks_20251004_183957.csv"
-    metadata_file = "metadata_real_stocks_20251004_183957.json"
+    results_file = "finbert_results_real_stocks_20251004_185131.csv"
+    metadata_file = "metadata_real_stocks_20251004_185131.json"
     
     try:
         df_results = pd.read_csv(results_file)
