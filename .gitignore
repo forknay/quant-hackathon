@@ -51,3 +51,6 @@ cleaning/status.json
 *.dvc
 
 *.pkl
+
+# OHLCV files
+inference/company_ohlcv_data/
