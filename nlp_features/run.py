@@ -67,19 +67,27 @@ def main():
                     pin_memory=torch.cuda.is_available(), persistent_workers=False)
 
     model = FinBertLightning(args.model)
-    trainer = pl.Trainer(accelerator="auto", devices="auto", logger=False, enable_checkpointing=False)
-
+    
+    # Direct device selection - bypass Lightning trainer device detection issues
+    if torch.cuda.is_available():
+        device = torch.device("cuda:0")
+        print(f"CUDA detected: {torch.cuda.get_device_name(0)}")
+        print(f"GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.1f} GB")
+    else:
+        device = torch.device("cpu")
+        print("WARNING: CUDA not available, using CPU (will be very slow)")
+    
+    print(f"Using device: {device}")
+    
+    # Verify GPU is actually being used
+    if device.type == "cuda":
+        print(f"GPU memory before model load: {torch.cuda.memory_allocated()/1e6:.0f} MB")
+    
     probs_chunks: List[np.ndarray] = []
     cls_chunks: List[np.ndarray] = []
     doc_indices: List[int] = []
 
     model.eval()
-    device = trainer.strategy.root_device if hasattr(trainer, "strategy") else torch.device("cpu")
-    try:
-        dev_name = torch.cuda.get_device_name(device) if device.type == "cuda" else str(device)
-    except Exception:
-        dev_name = str(device)
-    print(f"Using device: {dev_name}")
     
     # Enable mixed precision if requested and supported
     use_autocast = args.fp16 and device.type == "cuda"
@@ -89,6 +97,11 @@ def main():
         if hasattr(torch.backends.cuda.matmul, 'allow_tf32'):
             torch.backends.cuda.matmul.allow_tf32 = True
     model.to(device)
+    
+    # Verify model is on GPU
+    if device.type == "cuda":
+        print(f"GPU memory after model load: {torch.cuda.memory_allocated()/1e6:.0f} MB")
+        print(f"Model device: {next(model.parameters()).device}")
     
     # Estimate total batches for progress bar
     if args.streaming:
