@@ -604,19 +604,39 @@ def step5_build_portfolio(top_candidates: Dict, bottom_candidates: Dict,
     # Sort short positions by combined score (descending)
     portfolio['short_positions'].sort(key=lambda x: x['combined_score'], reverse=True)
     
-    # Calculate portfolio weights (equal weight within each position type)
+    # Calculate portfolio weights based on combined scores
     total_long = len(portfolio['long_positions'])
     total_short = len(portfolio['short_positions'])
     
+    # Score-based weighting for LONG positions (sum to +1.0)
     if total_long > 0:
-        long_weight_each = 1.0 / total_long
-        for position in portfolio['long_positions']:
-            position['portfolio_weight'] = long_weight_each
+        long_scores = [p['combined_score'] for p in portfolio['long_positions']]
+        total_long_score = sum(long_scores)
+        
+        if total_long_score > 0:
+            for position in portfolio['long_positions']:
+                # Weight proportional to combined score, normalized to sum to 1.0
+                position['portfolio_weight'] = position['combined_score'] / total_long_score
+        else:
+            # Fallback to equal weights if all scores are zero
+            long_weight_each = 1.0 / total_long
+            for position in portfolio['long_positions']:
+                position['portfolio_weight'] = long_weight_each
     
+    # Score-based weighting for SHORT positions (sum to -1.0)
     if total_short > 0:
-        short_weight_each = -1.0 / total_short  # Negative for short positions
-        for position in portfolio['short_positions']:
-            position['portfolio_weight'] = short_weight_each
+        short_scores = [p['combined_score'] for p in portfolio['short_positions']]
+        total_short_score = sum(short_scores)
+        
+        if total_short_score > 0:
+            for position in portfolio['short_positions']:
+                # Weight proportional to combined score, normalized to sum to -1.0
+                position['portfolio_weight'] = -position['combined_score'] / total_short_score
+        else:
+            # Fallback to equal weights if all scores are zero
+            short_weight_each = -1.0 / total_short
+            for position in portfolio['short_positions']:
+                position['portfolio_weight'] = short_weight_each
     
     # Summary statistics
     portfolio['summary'] = {
@@ -625,6 +645,8 @@ def step5_build_portfolio(top_candidates: Dict, bottom_candidates: Dict,
         'total_positions': total_long + total_short,
         'long_combined_scores': [p['combined_score'] for p in portfolio['long_positions']],
         'short_combined_scores': [p['combined_score'] for p in portfolio['short_positions']],
+        'long_weights_sum': sum([p['portfolio_weight'] for p in portfolio['long_positions']]) if total_long > 0 else 0,
+        'short_weights_sum': sum([p['portfolio_weight'] for p in portfolio['short_positions']]) if total_short > 0 else 0,
         'creation_date': datetime.now().isoformat()
     }
     
@@ -635,11 +657,15 @@ def step5_build_portfolio(top_candidates: Dict, bottom_candidates: Dict,
     
     if total_long > 0:
         long_scores = [p['combined_score'] for p in portfolio['long_positions']]
+        long_weights = [p['portfolio_weight'] for p in portfolio['long_positions']]
         print(f"  Long combined scores: {np.mean(long_scores):.4f} ± {np.std(long_scores):.4f}")
+        print(f"  Long weights sum: {sum(long_weights):.6f} (range: {min(long_weights):.4f} to {max(long_weights):.4f})")
     
     if total_short > 0:
         short_scores = [p['combined_score'] for p in portfolio['short_positions']]
+        short_weights = [p['portfolio_weight'] for p in portfolio['short_positions']]
         print(f"  Short combined scores: {np.mean(short_scores):.4f} ± {np.std(short_scores):.4f}")
+        print(f"  Short weights sum: {sum(short_weights):.6f} (range: {max(short_weights):.4f} to {min(short_weights):.4f})")
     
     print()
     
