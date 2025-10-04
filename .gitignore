@@ -17,6 +17,9 @@ __pycache__/
 # add specificdata files like sectorinfo.csv
 sectorinfo.csv
 
+# Jupyter
+.ipynb_checkpoints/
+
 # OS
 .DS_Store
 Thumbs.db
@@ -61,3 +64,6 @@ cleaning/status.json
 # Ignore huge CSVs
 Global (ex Canada and US) Company Name Merge by DataDate-GVKEY-IID.csv
 North America Company Name Merge by DataDate-GVKEY-IID.csv
+
+# Ignore all .csv files
+*.csv
