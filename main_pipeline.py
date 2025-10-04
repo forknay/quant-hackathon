@@ -109,7 +109,7 @@ def step1_run_algo(sector: str) -> bool:
 
 def step2_extract_candidates(sector: str, year: int, month: int, top_n: int, bottom_m: int) -> Tuple[Optional[Dict], Optional[Dict]]:
     """
-    Extract top N and bottom M candidates from algorithm results.
+    Extract top N and bottom M candidates from algorithm results with look-ahead bias protection.
     
     Args:
         sector: Sector name
@@ -124,6 +124,16 @@ def step2_extract_candidates(sector: str, year: int, month: int, top_n: int, bot
     """
     print(f"[STEP 2] Extracting Top {top_n} and Bottom {bottom_m} Candidates")
     print("-" * 80)
+    
+    # Calculate cutoff date for look-ahead bias protection
+    prediction_date = datetime(year, month, 1)
+    cutoff_date = prediction_date - timedelta(days=1)
+    
+    print(f"🔒 LOOK-AHEAD BIAS PROTECTION:")
+    print(f"   Prediction date: {prediction_date.strftime('%Y-%m-%d')}")
+    print(f"   Data cutoff: {cutoff_date.strftime('%Y-%m-%d')}")
+    print(f"   ⚠️  Only companies with sufficient data before {cutoff_date.strftime('%Y-%m-%d')} will be considered")
+    print()
     
     # Find candidate files
     candidates_dir = Path(f"algo/results/{sector}_parquet/candidates/year={year}/month={month}")
@@ -150,17 +160,78 @@ def step2_extract_candidates(sector: str, year: int, month: int, top_n: int, bot
     
     df_candidates = pd.concat(all_candidates, ignore_index=True)
     
-    # Construct company IDs
+    # Construct company IDs (format to match OHLCV filenames)
     df_candidates['company_id'] = ('comp_' + 
-                                   df_candidates['gvkey'].astype(str).str.zfill(6) + 
+                                   df_candidates['gvkey'].astype(float).astype(int).astype(str).str.zfill(6) + 
                                    '_' + 
                                    df_candidates['iid'].astype(str))
     
     print(f"✓ Total candidates found: {len(df_candidates)}")
     print(f"  Candidate types: {df_candidates['candidate_type'].value_counts().to_dict()}")
     
+    # Filter candidates based on available OHLCV data (consistent with Step 3 processing)
+    print(f"📊 Filtering candidates with sufficient historical data...")
+    
+    # Calculate begin_date (same logic as Step 3)
+    begin_date = prediction_date.replace(year=prediction_date.year - 3)
+    print(f"   📅 Using begin_date: {begin_date.strftime('%Y-%m-%d')} (3 years before prediction)")
+    print(f"   📅 Data must span: {begin_date.strftime('%Y-%m-%d')} to {cutoff_date.strftime('%Y-%m-%d')}")
+    
+    original_ohlcv_dir = Path("inference/company_ohlcv_data")
+    valid_candidates = []
+    
+    for _, row in df_candidates.iterrows():
+        company_id = row['company_id']
+        ohlcv_file = original_ohlcv_dir / f"{company_id}_ohlcv.csv"
+        
+        if ohlcv_file.exists():
+            try:
+                # Check if company has sufficient data in the required window
+                df_ohlcv = pd.read_csv(ohlcv_file)
+                df_ohlcv['Date'] = pd.to_datetime(df_ohlcv['Date'])
+                
+                # Apply both begin_date and cutoff_date filters (consistent with Step 3)
+                df_filtered = df_ohlcv[
+                    (df_ohlcv['Date'] >= begin_date) & 
+                    (df_ohlcv['Date'] <= cutoff_date)
+                ]
+                
+                # Require at least 30 data points in the filtered window 
+                # (accounting for quarterly data frequency and Step 3 processing requirements)
+                if len(df_filtered) >= 30:
+                    valid_candidates.append(row)
+                    
+            except Exception as e:
+                # Skip companies with data loading errors
+                continue
+    
+    if not valid_candidates:
+        print(f"❌ No candidates with sufficient historical data found!")
+        print(f"   Try a later prediction date or check OHLCV data availability")
+        return None, None
+    
+    df_valid = pd.DataFrame(valid_candidates)
+    
+    print(f"✓ Valid candidates after filtering: {len(df_valid)} (was {len(df_candidates)})")
+    print(f"  Removed: {len(df_candidates) - len(df_valid)} candidates with insufficient data")
+    
     # Sort by composite score to get top and bottom candidates
-    df_sorted = df_candidates.sort_values('composite_score', ascending=False)
+    df_sorted = df_valid.sort_values('composite_score', ascending=False)
+    
+    # Check if we have enough candidates
+    if len(df_sorted) < top_n:
+        print(f"⚠️  Warning: Only {len(df_sorted)} candidates available, but {top_n} requested for LONG positions")
+        top_n = len(df_sorted)
+    
+    if len(df_sorted) < bottom_m:
+        print(f"⚠️  Warning: Only {len(df_sorted)} candidates available, but {bottom_m} requested for SHORT positions")
+        bottom_m = len(df_sorted)
+    
+    if len(df_sorted) < (top_n + bottom_m):
+        print(f"⚠️  Warning: Not enough candidates for both LONG and SHORT positions")
+        # Prioritize LONG positions, then SHORT
+        available_for_short = max(0, len(df_sorted) - top_n)
+        bottom_m = min(bottom_m, available_for_short)
     
     # Extract top N (highest scores - long positions)
     top_candidates = df_sorted.head(top_n).copy()
@@ -172,12 +243,12 @@ def step2_extract_candidates(sector: str, year: int, month: int, top_n: int, bot
     bottom_company_ids = bottom_candidates['company_id'].tolist()
     bottom_algo_scores = bottom_candidates['composite_score'].tolist()
     
-    print(f"✓ Selected TOP {len(top_company_ids)} companies (LONG positions)")
+    print(f"✅ Selected TOP {len(top_company_ids)} companies (LONG positions)")
     print(f"  Score range: {min(top_algo_scores):.4f} to {max(top_algo_scores):.4f}")
     print(f"  Sample: {top_company_ids[:3]}")
     print()
     
-    print(f"✓ Selected BOTTOM {len(bottom_company_ids)} companies (SHORT positions)")
+    print(f"✅ Selected BOTTOM {len(bottom_company_ids)} companies (SHORT positions)")
     print(f"  Score range: {min(bottom_algo_scores):.4f} to {max(bottom_algo_scores):.4f}")
     print(f"  Sample: {bottom_company_ids[:3]}")
     print()
@@ -204,10 +275,10 @@ def step2_extract_candidates(sector: str, year: int, month: int, top_n: int, bot
 def step3_prepare_data_batch(company_ids: List[str], batch_name: str, 
                            prediction_year: int, prediction_month: int) -> Optional[str]:
     """
-    Prepare filtered OHLCV data for a batch of companies (preventing look-ahead bias).
+    Prepare filtered OHLCV data for a batch of companies (companies already pre-filtered for look-ahead bias).
     
     Args:
-        company_ids: List of company IDs to process
+        company_ids: List of company IDs to process (pre-filtered in Step 2)
         batch_name: Name for this batch (e.g., 'TOP_LONG', 'BOTTOM_SHORT')
         prediction_year: Year of prediction (for cutoff)
         prediction_month: Month of prediction (for cutoff)
@@ -229,7 +300,7 @@ def step3_prepare_data_batch(company_ids: List[str], batch_name: str,
     print(f"🔒 LOOK-AHEAD BIAS PROTECTION:")
     print(f"   Prediction date: {prediction_date.strftime('%Y-%m-%d')}")
     print(f"   Data cutoff: {cutoff_date.strftime('%Y-%m-%d')}")
-    print(f"   ⚠️  All data after {cutoff_date.strftime('%Y-%m-%d')} will be EXCLUDED")
+    print(f"   ✅ Companies already pre-filtered in Step 2 for sufficient historical data")
     print()
     
     # Create filtered OHLCV directory
@@ -240,17 +311,16 @@ def step3_prepare_data_batch(company_ids: List[str], batch_name: str,
         shutil.rmtree(filtered_ohlcv_dir)
     filtered_ohlcv_dir.mkdir(parents=True, exist_ok=True)
     
-    print(f"📊 Pre-filtering OHLCV data to remove future dates...")
+    print(f"📊 Creating time-filtered OHLCV data...")
     
-    filtered_count = 0
-    skipped_count = 0
+    processed_count = 0
     
     for company_id in company_ids:
         original_file = original_ohlcv_dir / f"{company_id}_ohlcv.csv"
         filtered_file = filtered_ohlcv_dir / f"{company_id}_ohlcv.csv"
         
         if not original_file.exists():
-            skipped_count += 1
+            print(f"  ⚠️  {company_id}: OHLCV file not found - skipping")
             continue
         
         try:
@@ -259,22 +329,19 @@ def step3_prepare_data_batch(company_ids: List[str], batch_name: str,
             df['Date'] = pd.to_datetime(df['Date'])
             df_filtered = df[df['Date'] <= cutoff_date].copy()
             
-            # Only save if we have enough data points
-            if len(df_filtered) >= 30:  # min_data_points
-                df_filtered['Date'] = df_filtered['Date'].dt.strftime('%Y-%m-%d')
-                df_filtered.to_csv(filtered_file, index=False)
-                filtered_count += 1
-            else:
-                skipped_count += 1
+            # Companies were already pre-filtered in Step 2, so this should have sufficient data
+            df_filtered['Date'] = df_filtered['Date'].dt.strftime('%Y-%m-%d')
+            df_filtered.to_csv(filtered_file, index=False)
+            processed_count += 1
         
         except Exception as e:
-            skipped_count += 1
-            print(f"  ❌ {company_id}: Error - {e}")
+            print(f"  ❌ {company_id}: Error processing - {e}")
+            continue
     
-    print(f"✓ Filtered {filtered_count} companies, skipped {skipped_count}")
+    print(f"✓ Processed {processed_count}/{len(company_ids)} companies")
     
-    if filtered_count == 0:
-        print("❌ No companies with sufficient data after filtering!")
+    if processed_count == 0:
+        print("❌ No companies successfully processed!")
         return None
     
     # Call data processing on filtered data
@@ -283,16 +350,26 @@ def step3_prepare_data_batch(company_ids: List[str], batch_name: str,
     try:
         from data_filtered import process_specific_companies
         
-        # Get list of filtered company IDs
+        # Get list of successfully processed company IDs
         filtered_files = list(filtered_ohlcv_dir.glob("*_ohlcv.csv"))
         filtered_company_ids = [f.stem.replace('_ohlcv', '') for f in filtered_files]
+        
+        print(f"  Processing {len(filtered_company_ids)} companies with filtered data...")
+        
+        # Calculate appropriate begin_date for this prediction
+        # Use 3 years before prediction date to ensure enough data for moving averages
+        prediction_date = datetime(prediction_year, prediction_month, 1)
+        begin_date = prediction_date.replace(year=prediction_date.year - 3)
+        begin_date_str = begin_date.strftime('%Y-%m-%d %H:%M:%S')
+        
+        print(f"  📅 Using begin_date: {begin_date_str} (3 years before prediction)")
         
         # Process data
         result = process_specific_companies(
             company_ids=filtered_company_ids,
             market_name=batch_name,
             ohlcv_dir=str(filtered_ohlcv_dir),
-            begin_date_str='2012-11-19 00:00:00',
+            begin_date_str=begin_date_str,
             min_data_points=30
         )
         
@@ -474,7 +551,7 @@ def step5_build_portfolio(top_candidates: Dict, bottom_candidates: Dict,
             
             portfolio['long_positions'].append({
                 'company_id': company_id,
-                'gvkey': int(company_info['gvkey']),
+                'gvkey': int(float(company_info['gvkey'])),
                 'iid': company_info['iid'],
                 'algo_score_raw': top_candidates['algo_scores'][i],
                 'algo_score_normalized': algo_score,
@@ -514,7 +591,7 @@ def step5_build_portfolio(top_candidates: Dict, bottom_candidates: Dict,
             
             portfolio['short_positions'].append({
                 'company_id': company_id,
-                'gvkey': int(company_info['gvkey']),
+                'gvkey': int(float(company_info['gvkey'])),
                 'iid': company_info['iid'],
                 'algo_score_raw': bottom_candidates['algo_scores'][i],
                 'algo_score_normalized': algo_score,
