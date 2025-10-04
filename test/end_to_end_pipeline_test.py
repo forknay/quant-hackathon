@@ -12,7 +12,12 @@ This avoids memory issues by working with a small subset (e.g., 50 companies).
 
 Usage:
     cd test
+    
+    # With mock predictions (fast test)
     python end_to_end_pipeline_test.py
+    
+    # With real ML model
+    python end_to_end_pipeline_test.py --use-real-model --model ../ml-model/models/pre_train_models/market-NASDAQ_days-32_feature-describe-all_ongoing-task-stock_mask_rate-0.3_lr-0.001_pretrain-coefs-1-0-0/model_tt_100.ckpt
 """
 
 import sys
@@ -168,18 +173,16 @@ def step2_create_small_pkl(candidate_ids, output_name='TEST_SMALL'):
 # STEP 3: Run ML Inference on Small Dataset
 # =============================================================================
 
-def step3_run_inference(pkl_path, model_path=None, top_n=10, bottom_m=10):
+def step3_run_inference(pkl_path, model_path=None, top_n=10, bottom_m=10, use_real_model=False):
     """
     Run ML inference on the small dataset.
     
-    For testing purposes, this generates mock predictions.
-    In production, this would call stock_inference.py with a real model.
-    
     Args:
         pkl_path: Path to the small pkl file
-        model_path: Path to trained model (optional for test)
+        model_path: Path to trained model (required if use_real_model=True)
         top_n: Number of top stocks to return
         bottom_m: Number of bottom stocks to return
+        use_real_model: If True, use real ML model; if False, use mock predictions
     
     Returns:
         dict: Inference results with top/bottom stocks
@@ -212,37 +215,22 @@ def step3_run_inference(pkl_path, model_path=None, top_n=10, bottom_m=10):
         print("❌ No stocks in pkl file!")
         return None
     
-    # Check data quality
-    valid_stocks = []
-    for stock_id, features in all_features.items():
-        # Check if stock has enough valid data (at least 32 days for model)
-        recent_data = features[-32:, 1:]  # Last 32 days, exclude date column
-        if len(recent_data) >= 32 and not np.all(recent_data == -1234):
-            valid_stocks.append(stock_id)
+    # Run inference (real or mock)
+    if use_real_model:
+        if not model_path or not os.path.exists(model_path):
+            print(f"❌ Model path not provided or doesn't exist: {model_path}")
+            print("   To use real model, specify --model path/to/model.ckpt")
+            return None
+        
+        print(f"  Using REAL ML MODEL: {model_path}")
+        predictions = run_real_inference(model_path, all_features)
+    else:
+        print(f"  Using MOCK predictions (for testing)")
+        predictions = run_mock_inference(all_features)
     
-    print(f"  Stocks with sufficient data for inference: {len(valid_stocks)}")
-    
-    if len(valid_stocks) == 0:
-        print("❌ No stocks have enough valid data for inference!")
+    if not predictions:
+        print("❌ No predictions generated!")
         return None
-    
-    # For test purposes, generate mock predictions
-    # In real scenario, would call model.predict()
-    print(f"  Generating predictions...")
-    print(f"  (Using mock predictions for test - replace with real model)")
-    
-    # Mock predictions: random scores with some structure
-    np.random.seed(42)  # For reproducibility
-    predictions = {}
-    
-    for stock_id in valid_stocks:
-        # Generate a score based on some fake logic
-        # In reality, this would be model output
-        features = all_features[stock_id]
-        recent_avg = np.mean(features[features != -1234][-50:])  # Simple feature
-        noise = np.random.randn() * 0.1
-        score = recent_avg + noise
-        predictions[stock_id] = score
     
     # Sort by prediction score
     sorted_stocks = sorted(predictions.items(), key=lambda x: x[1], reverse=True)
@@ -258,7 +246,7 @@ def step3_run_inference(pkl_path, model_path=None, top_n=10, bottom_m=10):
     
     results = {
         'total_stocks': num_stocks,
-        'valid_stocks': len(valid_stocks),
+        'valid_stocks': len(predictions),
         'top_n': {
             'stocks': top_stocks,
             'scores': top_scores
@@ -266,15 +254,68 @@ def step3_run_inference(pkl_path, model_path=None, top_n=10, bottom_m=10):
         'bottom_m': {
             'stocks': bottom_stocks,
             'scores': bottom_scores
-        }
+        },
+        'used_real_model': use_real_model
     }
     
-    print(f"✓ Generated predictions for {len(valid_stocks)} stocks")
+    print(f"✓ Generated predictions for {len(predictions)} stocks")
     print(f"  Top {top_n} stocks identified")
     print(f"  Bottom {bottom_m} stocks identified")
     print()
     
     return results
+
+
+def run_real_inference(model_path, all_features):
+    """Run inference using the real ML model."""
+    try:
+        from simple_inference import StockInference
+        
+        # Initialize and load model (using default NASDAQ model parameters)
+        inference = StockInference(model_path, device='cpu')
+        inference.load_model()  # Uses default parameters: hidden_size=128, layers=(1,1)
+        
+        # Run predictions
+        print(f"  Running model inference...")
+        predictions = inference.predict(all_features, days=32)
+        
+        return predictions
+    except Exception as e:
+        print(f"❌ Error during real inference: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+
+def run_mock_inference(all_features):
+    """Run mock inference for testing without a real model."""
+    # Check data quality
+    valid_stocks = []
+    for stock_id, features in all_features.items():
+        # Check if stock has enough valid data (at least 32 days for model)
+        recent_data = features[-32:, 1:]  # Last 32 days, exclude date column
+        if len(recent_data) >= 32 and not np.all(recent_data == -1234):
+            valid_stocks.append(stock_id)
+    
+    print(f"  Stocks with sufficient data for inference: {len(valid_stocks)}")
+    
+    if len(valid_stocks) == 0:
+        print("❌ No stocks have enough valid data for inference!")
+        return None
+    
+    # Mock predictions: random scores with some structure
+    np.random.seed(42)  # For reproducibility
+    predictions = {}
+    
+    for stock_id in valid_stocks:
+        # Generate a score based on some fake logic
+        features = all_features[stock_id]
+        recent_avg = np.mean(features[features != -1234][-50:])  # Simple feature
+        noise = np.random.randn() * 0.1
+        score = recent_avg + noise
+        predictions[stock_id] = score
+    
+    return predictions
 
 
 # =============================================================================
@@ -292,6 +333,8 @@ def step4_display_results(results, algo_candidates_df=None):
     
     print(f"Total stocks analyzed: {results['total_stocks']}")
     print(f"Stocks valid for inference: {results['valid_stocks']}")
+    model_type = "Real ML Model" if results.get('used_real_model', False) else "Mock Predictions"
+    print(f"Inference method: {model_type}")
     print()
     
     print("TOP STOCKS (Long Candidates):")
@@ -333,13 +376,13 @@ def step4_display_results(results, algo_candidates_df=None):
     print("Pipeline Flow Verified:")
     print("  1. ✅ ALGO layer selected candidates from healthcare sector")
     print("  2. ✅ DATA layer processed those companies' OHLCV into .pkl")
-    print("  3. ✅ ML layer ranked the companies (mock predictions)")
+    print(f"  3. ✅ ML layer ranked the companies ({model_type})")
     print("  4. ✅ OUTPUT layer returned top/bottom stocks")
     print()
-    print("Next Steps:")
-    print("  - Replace mock predictions with real ML model")
-    print("  - Integrate with actual inference pipeline")
-    print("  - Scale to full dataset once memory optimizations in place")
+    if not results.get('used_real_model', False):
+        print("Next Steps:")
+        print("  - Run with real ML model: --use-real-model --model path/to/model.ckpt")
+        print("  - Scale to full dataset once memory optimizations in place")
     print()
 
 
@@ -347,7 +390,8 @@ def step4_display_results(results, algo_candidates_df=None):
 # Main Test Flow
 # =============================================================================
 
-def run_end_to_end_test(sector='healthcare', year=2024, month=6, max_candidates=50):
+def run_end_to_end_test(sector='healthcare', year=2024, month=6, max_candidates=50, 
+                        use_real_model=False, model_path=None):
     """Run the complete end-to-end test."""
     
     print("Configuration:")
@@ -355,6 +399,9 @@ def run_end_to_end_test(sector='healthcare', year=2024, month=6, max_candidates=
     print(f"  Year: {year}")
     print(f"  Month: {month}")
     print(f"  Max candidates: {max_candidates} (for memory management)")
+    print(f"  Use real model: {use_real_model}")
+    if model_path:
+        print(f"  Model path: {model_path}")
     print()
     
     # Step 1: Get algo candidates
@@ -383,7 +430,13 @@ def run_end_to_end_test(sector='healthcare', year=2024, month=6, max_candidates=
         return False
     
     # Step 3: Run inference
-    results = step3_run_inference(pkl_path, top_n=10, bottom_m=10)
+    results = step3_run_inference(
+        pkl_path, 
+        model_path=model_path,
+        top_n=10, 
+        bottom_m=10,
+        use_real_model=use_real_model
+    )
     
     if not results:
         print("❌ Test failed: Inference failed")
@@ -404,6 +457,8 @@ if __name__ == "__main__":
     parser.add_argument('--year', type=int, default=2024, help='Year (default: 2024)')
     parser.add_argument('--month', type=int, default=6, help='Month (default: 6)')
     parser.add_argument('--max-companies', type=int, default=50, help='Max companies to process (default: 50)')
+    parser.add_argument('--use-real-model', action='store_true', help='Use real ML model instead of mock predictions')
+    parser.add_argument('--model', type=str, help='Path to model checkpoint (.ckpt file)')
     
     args = parser.parse_args()
     
@@ -411,7 +466,9 @@ if __name__ == "__main__":
         sector=args.sector,
         year=args.year,
         month=args.month,
-        max_candidates=args.max_companies
+        max_candidates=args.max_companies,
+        use_real_model=args.use_real_model,
+        model_path=args.model
     )
     
     sys.exit(0 if success else 1)
