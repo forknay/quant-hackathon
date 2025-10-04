@@ -8,6 +8,15 @@ __pycache__/
 .venv/
 .env/
 
+# data files
+*.parquet
+
+# Jupyter
+.ipynb_checkpoints/
+
+# add specificdata files like sectorinfo.csv
+sectorinfo.csv
+
 # Jupyter
 .ipynb_checkpoints/
 
@@ -56,3 +65,7 @@ cleaning/status.json
 inference/company_ohlcv_data/
 
 *.csv
+# Ignore huge CSVs
+Global (ex Canada and US) Company Name Merge by DataDate-GVKEY-IID.csv
+North America Company Name Merge by DataDate-GVKEY-IID.csv
+

@@ -3,8 +3,291 @@ import numpy as np
 import pickle as pkl
 import json
 import os
+import glob
+import pandas as pd
 from datetime import datetime
 import torch
+
+
+def process_company_ohlcv_data(market_name='CUSTOM', ohlcv_dir='../inference/company_ohlcv_data', 
+                                begin_date_str='2012-11-19 00:00:00', min_data_points=30):
+    """
+    Process company OHLCV CSV files from company_ohlcv_data/ directory.
+    
+    This function reads comp_*_ohlcv.csv files and creates the same output format
+    as process_eod_data(), but uses company IDs instead of ticker symbols.
+    
+    Args:
+        market_name: Name for output files (default: 'CUSTOM')
+        ohlcv_dir: Directory containing company OHLCV CSV files
+        begin_date_str: Start date for processing
+        min_data_points: Minimum data points required per company
+    """
+    data_path = os.path.join(os.getcwd(), './data')
+    os.makedirs(data_path, exist_ok=True)
+    
+    date_format = '%Y-%m-%d %H:%M:%S'
+    begin_date = datetime.strptime(begin_date_str, date_format)
+    return_days = 1
+    pad_begin = 29
+    
+    print(f"Processing company OHLCV data from {ohlcv_dir}")
+    
+    # Step 1: Discover all company OHLCV files
+    ohlcv_pattern = os.path.join(ohlcv_dir, 'comp_*_ohlcv.csv')
+    ohlcv_files = sorted(glob.glob(ohlcv_pattern))
+    
+    if len(ohlcv_files) == 0:
+        raise FileNotFoundError(f"No OHLCV files found in {ohlcv_dir}")
+    
+    company_ids = [os.path.basename(f).replace('_ohlcv.csv', '') for f in ohlcv_files]
+    print(f'#companies found: {len(company_ids)}')
+    
+    # Step 2: Build trading dates from all CSV files
+    print("Building trading dates list...")
+    all_dates_set = set()
+    valid_files = []
+    valid_company_ids = []
+    
+    for csv_file, company_id in zip(ohlcv_files, company_ids):
+        try:
+            df = pd.read_csv(csv_file)
+            if len(df) < min_data_points:
+                continue
+            
+            for date_val in df['Date'].values:
+                if ' ' in str(date_val):
+                    date_str = str(date_val).split(' ')[0] + ' 00:00:00'
+                else:
+                    date_str = str(date_val) + ' 00:00:00'
+                all_dates_set.add(date_str)
+            
+            valid_files.append(csv_file)
+            valid_company_ids.append(company_id)
+        except Exception as e:
+            print(f"Error reading {company_id}: {e}")
+            continue
+    
+    trading_dates = np.array(sorted(list(all_dates_set)))
+    print(f"Found {len(trading_dates)} unique trading dates")
+    print(f"Valid companies: {len(valid_company_ids)}")
+    
+    # Create date index mappings
+    index_tra_dates = {}
+    tra_dates_index = {}
+    for index, date in enumerate(trading_dates):
+        tra_dates_index[date] = index
+        index_tra_dates[index] = date
+    
+    # Step 3: Process each company
+    print("Computing features...")
+    all_features = {}
+    processed_count = 0
+    skipped_count = 0
+    error_reasons = {'insufficient_data': 0, 'date_filter': 0, 'normalization': 0, 'other': 0}
+    
+    for stock_index, (csv_file, company_id) in enumerate(zip(valid_files, valid_company_ids)):
+        try:
+            df = pd.read_csv(csv_file)
+            
+            # Convert to numpy array format
+            single_EOD_str = []
+            for _, row in df.iterrows():
+                date_val = str(row['Date'])
+                if ' ' in date_val:
+                    date_str = date_val.split(' ')[0] + ' 00:00:00'
+                else:
+                    date_str = date_val + ' 00:00:00'
+                
+                single_EOD_str.append([
+                    date_str,
+                    str(row['Open']),
+                    str(row['High']),
+                    str(row['Low']),
+                    str(row['Close']),
+                    str(row['Volume'])
+                ])
+            
+            single_EOD_str = np.array(single_EOD_str)
+            
+            # === BEGIN: IDENTICAL LOGIC TO ORIGINAL process_eod_data() ===
+            
+            # select data within the begin_date
+            begin_date_row = -1
+            for date_index, daily_EOD in enumerate(single_EOD_str):
+                date_str = daily_EOD[0]
+                cur_date = datetime.strptime(date_str, date_format)
+                if cur_date >= begin_date:
+                    begin_date_row = date_index
+                    break
+            
+            if begin_date_row == -1:
+                skipped_count += 1
+                error_reasons['date_filter'] += 1
+                continue
+            
+            selected_EOD_str = single_EOD_str[begin_date_row:]
+            
+            # Skip if insufficient data after date filtering
+            if len(selected_EOD_str) < min_data_points:
+                skipped_count += 1
+                error_reasons['insufficient_data'] += 1
+                continue
+            
+            selected_EOD = np.zeros(selected_EOD_str.shape, dtype=float)
+            
+            for row, daily_EOD in enumerate(selected_EOD_str):
+                date_str = daily_EOD[0]
+                if date_str not in tra_dates_index:
+                    continue
+                selected_EOD[row][0] = tra_dates_index[date_str]
+                for col in range(1, selected_EOD_str.shape[1]):
+                    selected_EOD[row][col] = float(daily_EOD[col])
+            
+            # calculate moving average features
+            # Find the first ROW INDEX where date index >= pad_begin
+            begin_date_row = -1
+            for row_idx in range(len(selected_EOD)):
+                date_index_val = int(selected_EOD[row_idx][0])
+                if date_index_val >= pad_begin:
+                    begin_date_row = row_idx  # Store ROW INDEX, not date index!
+                    break
+            
+            if begin_date_row == -1:
+                skipped_count += 1
+                error_reasons['insufficient_data'] += 1
+                continue
+            
+            mov_aver_features = np.zeros([selected_EOD.shape[0], 4 * 5], dtype=float)
+            
+            for row in range(begin_date_row, selected_EOD.shape[0]):
+                date_index = selected_EOD[row][0]
+                aver_5, aver_10, aver_20, aver_30 = [0.0] * 5, [0.0] * 5, [0.0] * 5, [0.0] * 5
+                count_5, count_10, count_20, count_30 = 0, 0, 0, 0
+                
+                for offset in range(30):
+                    if row - offset < 0:
+                        break
+                    date_gap = date_index - selected_EOD[row - offset][0]
+                    if date_gap < 5:
+                        count_5 += 1
+                        for price_index in range(1, 6):
+                            aver_5[price_index-1] += selected_EOD[row - offset][price_index]
+                    if date_gap < 10:
+                        count_10 += 1
+                        for price_index in range(1, 6):
+                            aver_10[price_index-1] += selected_EOD[row - offset][price_index]
+                    if date_gap < 20:
+                        count_20 += 1
+                        for price_index in range(1, 6):
+                            aver_20[price_index-1] += selected_EOD[row - offset][price_index]
+                    if date_gap < 30:
+                        count_30 += 1
+                        for price_index in range(1, 6):
+                            aver_30[price_index-1] += selected_EOD[row - offset][price_index]
+                
+                for price_index in range(5):
+                    if count_5 > 0:
+                        mov_aver_features[row][4 * price_index + 0] = aver_5[price_index] / count_5
+                    if count_10 > 0:
+                        mov_aver_features[row][4 * price_index + 1] = aver_10[price_index] / count_10
+                    if count_20 > 0:
+                        mov_aver_features[row][4 * price_index + 2] = aver_20[price_index] / count_20
+                    if count_30 > 0:
+                        mov_aver_features[row][4 * price_index + 3] = aver_30[price_index] / count_30
+            
+            # normalize features
+            # Check if we have enough rows for normalization
+            normalization_data = selected_EOD[begin_date_row:, 1:6]
+            if len(normalization_data) == 0:
+                skipped_count += 1
+                error_reasons['normalization'] += 1
+                continue
+            
+            price_min = np.min(normalization_data, 0)
+            price_max = np.max(normalization_data, 0)
+            for price_index in range(5):
+                if price_max[price_index] > 0:
+                    mov_aver_features[:, 4 * price_index: 4 * price_index + 4] = (
+                        mov_aver_features[:, 4 * price_index: 4 * price_index + 4] / price_max[price_index])
+            
+            # build final features array
+            features = np.ones([len(trading_dates) - pad_begin, 1+5*5], dtype=float) * -1234
+            for row in range(len(trading_dates) - pad_begin):
+                features[row][0] = row
+            
+            for row in range(begin_date_row, selected_EOD.shape[0]):
+                cur_index = int(selected_EOD[row][0])
+                if cur_index < pad_begin:
+                    continue
+                for price_index in range(5):
+                    features[cur_index - pad_begin][1+5*price_index: 1+5*price_index+4] \
+                        = mov_aver_features[row][4*price_index: 4*price_index+4]
+                    if row >= return_days:
+                        if cur_index - int(selected_EOD[row - return_days][0]) == return_days:
+                            if price_max[price_index] > 0:
+                                features[cur_index - pad_begin][1+5*price_index+4] \
+                                    = selected_EOD[row][1+price_index] / price_max[price_index]
+            
+            # Store with company ID as key
+            all_features[company_id] = features
+            processed_count += 1
+            
+            # === END: IDENTICAL LOGIC ===
+            
+            if processed_count % 1000 == 0:
+                print(f"  Processed: {processed_count:,} | Skipped: {skipped_count:,} | Total: {processed_count + skipped_count:,}")
+        
+        except Exception as e:
+            skipped_count += 1
+            error_reasons['other'] += 1
+            # Only print first 10 errors to avoid spam
+            if skipped_count <= 10:
+                print(f"  Error processing {company_id}: {e}")
+            continue
+    
+    # Print final summary
+    print("\n" + "="*80)
+    print("PROCESSING SUMMARY")
+    print("="*80)
+    print(f"Total companies discovered:     {len(valid_company_ids):,}")
+    print(f"Successfully processed:         {processed_count:,}")
+    print(f"Skipped:                        {skipped_count:,}")
+    print(f"\nSkip reasons:")
+    print(f"  Insufficient data:            {error_reasons['insufficient_data']:,}")
+    print(f"  Failed date filter:           {error_reasons['date_filter']:,}")
+    print(f"  Normalization issues:         {error_reasons['normalization']:,}")
+    print(f"  Other errors:                 {error_reasons['other']:,}")
+    print("="*80)
+    
+    # Save outputs
+    print(f"\nSaving {len(all_features)} companies to pickle file...")
+    print("This may take a few minutes...")
+    save_data = {'all_features': all_features, 'index_tra_dates': index_tra_dates, 'tra_dates_index': tra_dates_index}
+    
+    pkl_path = os.path.join(data_path, market_name + '_all_features.pkl')
+    try:
+        with open(pkl_path, 'wb') as fw:
+            # Use protocol 4 for better memory efficiency with large files
+            pkl.dump(save_data, fw, protocol=4)
+        print(f"✅ Successfully saved pickle file: {pkl_path}")
+    except Exception as e:
+        print(f"❌ Error saving pickle file: {e}")
+        print("   File may be too large for available memory")
+        raise
+    
+    # Save trading dates
+    with open(os.path.join(data_path, market_name + '_aver_line_dates.csv'), 'w') as f:
+        for date_str in trading_dates:
+            f.write(f"{date_str}\n")
+    
+    # Save company IDs list
+    with open(os.path.join(data_path, market_name + '_tickers_qualify_dr-0.98_min-5_smooth.csv'), 'w') as f:
+        for company_id in sorted(all_features.keys()):
+            f.write(f"{company_id}\n")
+    
+    print(f"Saved to {data_path}/{market_name}_all_features.pkl")
+    return save_data
 
 
 def process_eod_data(market_name):
@@ -507,5 +790,11 @@ class MyPretrainDataLoader():
 
 
 if __name__ == "__main__":
-    process_eod_data('NASDAQ')
-    extract_sector_data('NASDAQ')
+    # To process company OHLCV data from company_ohlcv_data/ folder:
+    process_company_ohlcv_data(
+        market_name='CUSTOM',
+        ohlcv_dir='../inference/company_ohlcv_data',
+        begin_date_str='2012-11-19 00:00:00',
+        min_data_points=30
+    )
+    
