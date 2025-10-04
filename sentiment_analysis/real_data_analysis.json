@@ -1,0 +1,19 @@
+{
+  "data_files": {
+    "link_table": {
+      "columns": [
+        "gvkey",
+        "datadate",
+        "iid",
+        "tic",
+        "cusip",
+        "conm",
+        "tpci",
+        "cik"
+      ],
+      "shape_sample": [
+        1000,
+        8
+      ],
+      "dtypes": {
+        "gvkey": 
