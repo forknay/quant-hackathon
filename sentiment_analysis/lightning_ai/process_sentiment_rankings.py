@@ -10,14 +10,31 @@ import numpy as np
 from datetime import datetime
 import json
 
-def process_sentiment_rankings():
+def process_sentiment_rankings(results_file=None):
     """Process FinBERT results and create sentiment rankings"""
-    print("🚀 PROCESSING REAL STOCK SENTIMENT RANKINGS")
+    print("PROCESSING REAL STOCK SENTIMENT RANKINGS")
     print("=" * 60)
     
     # Load FinBERT results
-    results_file = "finbert_results_real_stocks_20251004_185131.csv"
-    metadata_file = "metadata_real_stocks_20251004_185131.json"
+    if results_file is None:
+        results_file = "finbert_results_real_stocks_20251004_185131.csv"
+    
+    # Try to find corresponding metadata file
+    if results_file.endswith('.json'):
+        metadata_file = results_file
+        # Look for CSV file with similar name
+        csv_name = results_file.replace('.json', '.csv')
+        if 'finbert_results' in results_file:
+            results_file = csv_name
+        else:
+            # This is metadata, we need to find the CSV
+            print(f"Looking for CSV results file...")
+            results_file = "finbert_results_real_stocks_20251004_185131.csv"
+    else:
+        # It's a CSV file, look for corresponding metadata
+        metadata_file = results_file.replace('.csv', '.json').replace('finbert_results', 'metadata')
+        if not metadata_file.endswith('.json'):
+            metadata_file = "metadata_real_stocks_20251004_185131.json"
     
     try:
         df_results = pd.read_csv(results_file)
@@ -60,8 +77,13 @@ def process_sentiment_rankings():
             df_results.at[idx, 'positive_score'] = (1 - score) * 0.5
             df_results.at[idx, 'negative_score'] = (1 - score) * 0.5
     
-    # Calculate net sentiment
+    # Calculate net sentiment and numeric sentiment score
     df_results['net_sentiment'] = df_results['positive_score'] - df_results['negative_score']
+    
+    # Create numeric sentiment score (-1 to +1 scale)
+    # This gives a continuous numeric value where:
+    # -1.0 = Most Negative, 0.0 = Neutral, +1.0 = Most Positive
+    df_results['numeric_sentiment'] = df_results['net_sentiment']
     
     print(f"Sentiment distribution:")
     print(f"  Positive: {(df_results['sentiment_label'] == 'Positive').sum()}")
@@ -78,6 +100,7 @@ def process_sentiment_rankings():
         'negative_score': 'mean', 
         'neutral_score': 'mean',
         'net_sentiment': 'mean',
+        'numeric_sentiment': 'mean',
         'sentiment_score': 'mean',
         'text_id': 'count',
         'text_type': lambda x: list(x.unique()),
@@ -85,7 +108,7 @@ def process_sentiment_rankings():
     }).round(4)
     
     stock_sentiment.columns = ['gvkey', 'iid', 'avg_positive', 'avg_negative', 'avg_neutral',
-                              'net_sentiment', 'avg_confidence', 'text_count', 'text_types', 'years']
+                              'net_sentiment', 'numeric_sentiment', 'avg_confidence', 'text_count', 'text_types', 'years']
     stock_sentiment = stock_sentiment.reset_index()
     
     # Calculate weighted sentiment score
@@ -95,6 +118,48 @@ def process_sentiment_rankings():
         stock_sentiment['avg_confidence'] * 
         np.log1p(stock_sentiment['text_count'])
     )
+    
+    # NORMALIZATION: Create normalized scores that sum to 1 across all stocks
+    print("\n🔢 Calculating normalized sentiment scores...")
+    
+    # Method 1: Min-Max Normalization (0 to 1 scale)
+    min_sentiment = stock_sentiment['numeric_sentiment'].min()
+    max_sentiment = stock_sentiment['numeric_sentiment'].max()
+    
+    if max_sentiment == min_sentiment:
+        # All stocks have same sentiment - equal weights
+        stock_sentiment['normalized_score_minmax'] = 1.0 / len(stock_sentiment)
+    else:
+        # Scale to 0-1 range
+        stock_sentiment['normalized_score_minmax'] = (
+            (stock_sentiment['numeric_sentiment'] - min_sentiment) / 
+            (max_sentiment - min_sentiment)
+        )
+        # Normalize so they sum to 1
+        total = stock_sentiment['normalized_score_minmax'].sum()
+        stock_sentiment['normalized_score_minmax'] = stock_sentiment['normalized_score_minmax'] / total
+    
+    # Method 2: Softmax Normalization (probability distribution)
+    # This emphasizes differences between stocks
+    sentiment_values = stock_sentiment['numeric_sentiment'].values
+    exp_values = np.exp(sentiment_values - np.max(sentiment_values))  # Subtract max for numerical stability
+    stock_sentiment['normalized_score_softmax'] = exp_values / np.sum(exp_values)
+    
+    # Method 3: Simple Linear Shift and Scale (centered around mean)
+    mean_sentiment = stock_sentiment['numeric_sentiment'].mean()
+    std_sentiment = stock_sentiment['numeric_sentiment'].std()
+    
+    if std_sentiment == 0:
+        # All stocks have same sentiment
+        stock_sentiment['normalized_score_linear'] = 1.0 / len(stock_sentiment)
+    else:
+        # Shift to positive range and normalize
+        shifted_sentiment = stock_sentiment['numeric_sentiment'] - min_sentiment + 0.1  # Add small positive offset
+        stock_sentiment['normalized_score_linear'] = shifted_sentiment / shifted_sentiment.sum()
+    
+    print(f"  ✅ Min-Max normalized scores (sum = {stock_sentiment['normalized_score_minmax'].sum():.3f})")
+    print(f"  ✅ Softmax normalized scores (sum = {stock_sentiment['normalized_score_softmax'].sum():.3f})")
+    print(f"  ✅ Linear normalized scores (sum = {stock_sentiment['normalized_score_linear'].sum():.3f})")
     
     # Add sentiment strength category
     def categorize_sentiment(net_sent):
@@ -119,11 +184,22 @@ def process_sentiment_rankings():
     output_file = f"stock_sentiment_rankings_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     stock_sentiment.to_csv(output_file, index=False)
     
-    print(f"\n🏆 FINAL SENTIMENT RANKINGS")
-    print("=" * 60)
-    display_cols = ['sentiment_rank', 'stock_identifier', 'net_sentiment', 
-                   'sentiment_category', 'weighted_sentiment', 'text_count']
+    print(f"\n🏆 FINAL SENTIMENT RANKINGS WITH NORMALIZED SCORES")
+    print("=" * 80)
+    display_cols = ['sentiment_rank', 'stock_identifier', 'numeric_sentiment', 'normalized_score_minmax', 
+                   'normalized_score_softmax', 'normalized_score_linear', 'sentiment_category', 'text_count']
     print(stock_sentiment[display_cols].to_string(index=False))
+    
+    print(f"\n🔢 NORMALIZATION VALIDATION:")
+    print(f"  • Min-Max normalized sum: {stock_sentiment['normalized_score_minmax'].sum():.6f}")
+    print(f"  • Softmax normalized sum: {stock_sentiment['normalized_score_softmax'].sum():.6f}")
+    print(f"  • Linear normalized sum: {stock_sentiment['normalized_score_linear'].sum():.6f}")
+    
+    print(f"\n📊 SCORE RANGES:")
+    print(f"  • Numeric sentiment: {stock_sentiment['numeric_sentiment'].min():.3f} to {stock_sentiment['numeric_sentiment'].max():.3f}")
+    print(f"  • Min-Max normalized: {stock_sentiment['normalized_score_minmax'].min():.3f} to {stock_sentiment['normalized_score_minmax'].max():.3f}")
+    print(f"  • Softmax normalized: {stock_sentiment['normalized_score_softmax'].min():.3f} to {stock_sentiment['normalized_score_softmax'].max():.3f}")
+    print(f"  • Linear normalized: {stock_sentiment['normalized_score_linear'].min():.3f} to {stock_sentiment['normalized_score_linear'].max():.3f}")
     
     # Detailed analysis by text type
     print(f"\n📋 SENTIMENT BY TEXT TYPE")
