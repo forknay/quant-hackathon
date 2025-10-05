@@ -1,30 +1,36 @@
 """
-COMPLETE SENTIMENT ANALYSIS PIPELINE
-=====================================
+COMPLETE SENTIMENT ANALYSIS PIPELINE - REAL TEXTDATA EXTRACTION
+================================================================
 
-All-in-one script for complete FinBERT sentiment analysis from stock symbol    print(f"   [SUCCESS] Extracted {len(result_df)} total texts")
-        print(f"   [SUCCESS] Successfully processed {len(results_df)} texts")
-       print(f"\n[COMPLETE] PIPELINE COMPLETE!")
-    print(f"[PROCESSED] Processed {len(results_df)} texts from {len(results_df['stock_identifier'].unique())} stocks")
-    print(f"[SAVED] Results saved with timestamp: {timestamp}")int(f"   [STATS] Average confidence: {results_df['confidence_score'].mean():.3f}")int(f"   [STATS] Texts per stock: {result_df['stock_identifier'].value_counts().to_dict()}")to final rankings.
+⚠️  IMPORTANT: This script ALWAYS extracts from real TextData - NO pre-generated datasets!
+
+All-in-one script for complete FinBERT sentiment analysis that works with ANY stock GVKEY:IID.
 
 This script does EVERYTHING:
 1. Takes stock symbols as input (from algorithm or manual input)
-2. Extracts real SEC filing texts from TextData
-3. Runs FinBERT sentiment analysis 
-4. Applies 3 enhanced normalization methods
+2. **ALWAYS extracts real SEC filing texts from TextData directory**
+3. Runs FinBERT sentiment analysis with GPU/CPU fallback
+4. Applies 3 enhanced normalization methods (all sum to 1.0)
 5. Generates final sentiment rankings
 6. Saves all results with timestamps
 
+✅ WORKS WITH ANY STOCK: Just provide any GVKEY:IID and it will search TextData
+✅ NO PREDETERMINED DATASETS: Always extracts fresh data from SEC filings
+✅ LIGHTNING.AI READY: Upload TextData directory and this script
+
 USAGE:
 ------
-Local: python complete_sentiment_pipeline.py
-Lightning.ai: Upload this file and run it in Studio
+Local: python complete_sentiment_pipeline.py 1234:01 5678:01
+Lightning.ai: Upload TextData/ directory + this script, then run
+
+REQUIRED DATA:
+- TextData/ directory with parquet files containing SEC filings
+- Structure: TextData/YYYY/*.parquet (e.g., TextData/2023/batch_1.parquet)
 
 INPUT OPTIONS:
-- Manual: Edit STOCK_SYMBOLS list below
-- Algorithm: Pass stocks to process_stocks_sentiment() function
-- CSV: Upload finbert_input_*.csv file (auto-detected)
+- Command line: python complete_sentiment_pipeline.py STOCK1 STOCK2
+- Algorithm: get_sentiment_rankings(['STOCK1:01', 'STOCK2:01'])
+- Default: Uses STOCK_SYMBOLS list below if no stocks specified
 """
 
 import pandas as pd
@@ -112,8 +118,19 @@ def extract_textdata_for_stocks(stock_identifiers, year_range=(2023, 2025), max_
     
     print(f"   [PATH] Using TextData path: {textdata_path}")
     
-    # Extract GVKEYs from stock identifiers
-    gvkeys = [stock.split(':')[0] for stock in stock_identifiers]
+    # Extract GVKEYs from stock identifiers and preserve original IID
+    stock_mapping = {}
+    gvkeys = []
+    for stock_id in stock_identifiers:
+        parts = stock_id.split(':')
+        gvkey = parts[0]
+        iid = parts[1] if len(parts) > 1 else '01'
+        stock_mapping[gvkey] = f"{gvkey}:{iid}"
+        gvkeys.append(gvkey)
+    
+    print(f"   [SEARCH] Searching for GVKEYs: {gvkeys} across years {year_range}")
+    
+    stocks_found = set()
     
     for year in range(year_range[0], year_range[1] + 1):
         year_path = os.path.join(textdata_path, str(year))
@@ -121,41 +138,93 @@ def extract_textdata_for_stocks(stock_identifiers, year_range=(2023, 2025), max_
             print(f"   [WARN] Year {year} not found, skipping...")
             continue
         
-        # Find parquet files for this year
-        parquet_files = [f for f in os.listdir(year_path) if f.endswith('.parquet')]
+        # Find ALL parquet files for this year (comprehensive search)
+        parquet_files = []
+        for root, dirs, files in os.walk(year_path):
+            for file in files:
+                if file.endswith('.parquet'):
+                    parquet_files.append(os.path.join(root, file))
         
-        for file in parquet_files:
+        print(f"   [SCAN] Scanning {len(parquet_files)} parquet files in {year}...")
+        
+        for file_path in parquet_files:
             try:
-                file_path = os.path.join(year_path, file)
                 df = pd.read_parquet(file_path)
                 
-                # Filter for our stocks
-                if 'gvkey' in df.columns:
-                    matched_data = df[df['gvkey'].astype(str).isin(gvkeys)]
+                # Check different possible column names for GVKEY
+                gvkey_col = None
+                for col in ['gvkey', 'GVKEY', 'gvkey_id', 'stock_id']:
+                    if col in df.columns:
+                        gvkey_col = col
+                        break
+                
+                if gvkey_col is None:
+                    continue  # Skip files without GVKEY column
+                
+                # Convert to string for comparison
+                df[gvkey_col] = df[gvkey_col].astype(str)
+                
+                # Filter for our target stocks
+                matched_data = df[df[gvkey_col].isin(gvkeys)]
+                
+                if len(matched_data) > 0:
+                    print(f"   [FOUND] Found {len(matched_data)} texts in {os.path.basename(file_path)}")
                     
-                    if len(matched_data) > 0:
-                        print(f"   [FOUND] Found {len(matched_data)} texts in {year}/{file}")
+                    for gvkey in gvkeys:
+                        stock_data = matched_data[matched_data[gvkey_col] == gvkey]
                         
-                        for gvkey in gvkeys:
-                            stock_data = matched_data[matched_data['gvkey'].astype(str) == gvkey]
+                        if len(stock_data) > 0:
+                            stocks_found.add(gvkey)
+                            # Limit texts per stock to avoid overwhelming the system
+                            stock_data = stock_data.head(max_texts_per_stock)
                             
-                            if len(stock_data) > 0:
-                                # Limit texts per stock
-                                stock_data = stock_data.head(max_texts_per_stock)
-                                
-                                for _, row in stock_data.iterrows():
+                            # Check different possible text column names
+                            text_col = None
+                            for col in ['text', 'content', 'filing_text', 'TEXT', 'CONTENT']:
+                                if col in stock_data.columns:
+                                    text_col = col
+                                    break
+                            
+                            if text_col is None:
+                                print(f"   [WARN] No text column found in {os.path.basename(file_path)}")
+                                continue
+                            
+                            for _, row in stock_data.iterrows():
+                                text_content = str(row.get(text_col, ''))
+                                if text_content and text_content != 'nan' and len(text_content.strip()) > 10:
                                     all_texts.append({
                                         'text_id': f"{gvkey}_{year}_{len(all_texts)}",
-                                        'stock_identifier': f"{gvkey}:01",
+                                        'stock_identifier': stock_mapping[gvkey],
                                         'gvkey': gvkey,
                                         'year': year,
-                                        'text': str(row.get('text', row.get('content', ''))),
-                                        'filename': file
+                                        'text': text_content,
+                                        'filename': os.path.basename(file_path),
+                                        'file_path': file_path
                                     })
                 
             except Exception as e:
-                print(f"   [ERROR] Error processing {file}: {str(e)}")
+                print(f"   [ERROR] Error processing {os.path.basename(file_path)}: {str(e)}")
                 continue
+    
+    print(f"   [RESULTS] Found data for {len(stocks_found)} out of {len(gvkeys)} requested stocks")
+    print(f"   [STOCKS_FOUND] {list(stocks_found)}")
+    
+    if len(stocks_found) == 0:
+        available_stocks = []
+        # Quick scan to show available stocks
+        try:
+            sample_file = parquet_files[0] if parquet_files else None
+            if sample_file:
+                sample_df = pd.read_parquet(sample_file)
+                if 'gvkey' in sample_df.columns:
+                    available_stocks = sample_df['gvkey'].astype(str).unique()[:10].tolist()
+        except:
+            pass
+        
+        error_msg = f"No texts found for any of the requested stocks {gvkeys} in years {year_range}"
+        if available_stocks:
+            error_msg += f"\nSample available stocks in TextData: {available_stocks}"
+        raise ValueError(error_msg)
     
     if not all_texts:
         raise ValueError(f"No texts found for stocks {stock_identifiers} in years {year_range}")
@@ -252,25 +321,16 @@ def process_stocks_sentiment(stock_identifiers=None, input_csv=None, max_texts_p
     print("=" * 50)
     print(f"[START] Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     
-    # Determine input method
-    if input_csv and os.path.exists(input_csv):
-        print(f"[INPUT] Using pre-extracted CSV: {input_csv}")
-        texts_df = pd.read_csv(input_csv)
-        
-    elif stock_identifiers:
+    # ALWAYS extract from real TextData - NO pre-generated datasets
+    if stock_identifiers:
         print(f"[STOCKS] Processing stocks: {stock_identifiers}")
         texts_df = extract_textdata_for_stocks(stock_identifiers, max_texts_per_stock=max_texts_per_stock)
-        
     else:
-        # Auto-detect uploaded CSV files
-        csv_files = [f for f in os.listdir('.') if f.startswith('finbert_input_') and f.endswith('.csv')]
-        if csv_files:
-            input_csv = csv_files[0]
-            print(f"[AUTO] Auto-detected CSV: {input_csv}")
-            texts_df = pd.read_csv(input_csv)
-        else:
-            print(f"[DEFAULT] Using default stocks: {STOCK_SYMBOLS}")
-            texts_df = extract_textdata_for_stocks(STOCK_SYMBOLS, max_texts_per_stock=max_texts_per_stock)
+        print(f"[DEFAULT] Using default stocks: {STOCK_SYMBOLS}")
+        texts_df = extract_textdata_for_stocks(STOCK_SYMBOLS, max_texts_per_stock=max_texts_per_stock)
+    
+    print(f"[EXTRACTED] Successfully extracted {len(texts_df)} texts from real TextData")
+    print(f"[STOCKS_FOUND] Texts per stock: {dict(texts_df['stock_identifier'].value_counts())}")
     
     # Run FinBERT analysis
     results_df = run_finbert_analysis(texts_df)
