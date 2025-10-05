@@ -161,45 +161,66 @@ def extract_textdata_for_stocks(stock_identifiers, year_range=(2023, 2025), max_
                 if gvkey_col is None:
                     continue  # Skip files without GVKEY column
                 
-                # Convert to string for comparison
-                df[gvkey_col] = df[gvkey_col].astype(str)
-                
-                # Filter for our target stocks
-                matched_data = df[df[gvkey_col].isin(gvkeys)]
+                # Handle both string and float GVKEYs
+                if df[gvkey_col].dtype == 'float64':
+                    # Convert target GVKEYs to float for comparison
+                    target_gvkeys_float = []
+                    for gvkey in gvkeys:
+                        try:
+                            target_gvkeys_float.append(float(gvkey))
+                        except ValueError:
+                            target_gvkeys_float.append(gvkey)
+                    matched_data = df[df[gvkey_col].isin(target_gvkeys_float)]
+                else:
+                    # Convert to string for comparison
+                    df[gvkey_col] = df[gvkey_col].astype(str)
+                    matched_data = df[df[gvkey_col].isin(gvkeys)]
                 
                 if len(matched_data) > 0:
                     print(f"   [FOUND] Found {len(matched_data)} texts in {os.path.basename(file_path)}")
                     
                     for gvkey in gvkeys:
-                        stock_data = matched_data[matched_data[gvkey_col] == gvkey]
+                        # Handle both string and float comparison
+                        if df[gvkey_col].dtype == 'float64':
+                            try:
+                                gvkey_val = float(gvkey)
+                            except ValueError:
+                                gvkey_val = gvkey
+                        else:
+                            gvkey_val = gvkey
+                        stock_data = matched_data[matched_data[gvkey_col] == gvkey_val]
                         
                         if len(stock_data) > 0:
                             stocks_found.add(gvkey)
                             # Limit texts per stock to avoid overwhelming the system
                             stock_data = stock_data.head(max_texts_per_stock)
                             
-                            # Check different possible text column names
-                            text_col = None
-                            for col in ['text', 'content', 'filing_text', 'TEXT', 'CONTENT']:
-                                if col in stock_data.columns:
-                                    text_col = col
-                                    break
+                            # Extract text from multiple columns (rf = Risk Factors, mgmt = Management Discussion)
+                            text_columns = ['rf', 'mgmt', 'text', 'content', 'filing_text', 'TEXT', 'CONTENT']
+                            available_text_cols = [col for col in text_columns if col in stock_data.columns]
                             
-                            if text_col is None:
-                                print(f"   [WARN] No text column found in {os.path.basename(file_path)}")
+                            if not available_text_cols:
+                                print(f"   [WARN] No text columns found in {os.path.basename(file_path)}")
                                 continue
                             
                             for _, row in stock_data.iterrows():
-                                text_content = str(row.get(text_col, ''))
-                                if text_content and text_content != 'nan' and len(text_content.strip()) > 10:
+                                # Combine text from all available text columns
+                                combined_text = ""
+                                for text_col in available_text_cols:
+                                    text_content = str(row.get(text_col, ''))
+                                    if text_content and text_content != 'nan' and len(text_content.strip()) > 10:
+                                        combined_text += text_content + " "
+                                
+                                if len(combined_text.strip()) > 50:  # Ensure we have meaningful text
                                     all_texts.append({
-                                        'text_id': f"{gvkey}_{year}_{len(all_texts)}",
+                                        'text_id': f"{gvkey_val}_{year}_{len(all_texts)}",
                                         'stock_identifier': stock_mapping[gvkey],
-                                        'gvkey': gvkey,
+                                        'gvkey': str(gvkey_val),
                                         'year': year,
-                                        'text': text_content,
+                                        'text': combined_text.strip(),
                                         'filename': os.path.basename(file_path),
-                                        'file_path': file_path
+                                        'file_path': file_path,
+                                        'text_columns_used': available_text_cols
                                     })
                 
             except Exception as e:
