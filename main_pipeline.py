@@ -44,7 +44,7 @@ sys.path.insert(0, str(Path(__file__).parent / "inference"))
 
 print("=" * 100)
 print("QUANTITATIVE TRADING PIPELINE")
-print("ALGO → DATA → ML → PORTFOLIO")
+print("ALGO -> DATA -> ML -> PORTFOLIO")
 print("=" * 100)
 print()
 
@@ -161,10 +161,32 @@ def step2_extract_candidates(sector: str, year: int, month: int, top_n: int, bot
     df_candidates = pd.concat(all_candidates, ignore_index=True)
     
     # Construct company IDs (format to match OHLCV filenames)
+    # First, convert categorical to string and handle any missing/invalid values
+    print(f"  Before processing: {len(df_candidates)} candidates")
+    
+    # Convert gvkey and iid to string, then to numeric, handling errors
+    df_candidates['gvkey_str'] = df_candidates['gvkey'].astype(str)
+    df_candidates['iid_str'] = df_candidates['iid'].astype(str)
+    
+    # Remove rows with 'nan', 'None', or empty string values
+    df_candidates = df_candidates[
+        (~df_candidates['gvkey_str'].isin(['nan', 'None', '', 'NaN'])) &
+        (~df_candidates['iid_str'].isin(['nan', 'None', '', 'NaN']))
+    ]
+    
+    print(f"  After string cleaning: {len(df_candidates)} candidates")
+    
+    # Convert to numeric, removing .0 if present
+    df_candidates['gvkey_clean'] = df_candidates['gvkey_str'].str.replace('.0', '', regex=False)
+    df_candidates['iid_clean'] = df_candidates['iid_str'].str.replace('.0', '', regex=False)
+    
     df_candidates['company_id'] = ('comp_' + 
-                                   df_candidates['gvkey'].astype(float).astype(int).astype(str).str.zfill(6) + 
+                                   df_candidates['gvkey_clean'].str.zfill(6) + 
                                    '_' + 
-                                   df_candidates['iid'].astype(str))
+                                   df_candidates['iid_clean'])
+    
+    # Clean up temporary columns
+    df_candidates = df_candidates.drop(['gvkey_str', 'iid_str', 'gvkey_clean', 'iid_clean'], axis=1)
     
     print(f"✓ Total candidates found: {len(df_candidates)}")
     print(f"  Candidate types: {df_candidates['candidate_type'].value_counts().to_dict()}")
@@ -748,7 +770,7 @@ def run_main_pipeline(sector: str, year: int, month: int, top_n: int, bottom_m: 
     Returns:
         bool: True if successful
     """
-    print(f"🚀 Starting Main Pipeline for {sector.upper()} {year}/{month:02d}")
+    print(f"Starting Main Pipeline for {sector.upper()} {year}/{month:02d}")
     print(f"Target: {top_n} long + {bottom_m} short positions")
     print(f"Model: {model_path}")
     print()

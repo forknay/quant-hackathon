@@ -1,0 +1,81 @@
+{
+  "long_positions": [
+    {
+      "company_id": "comp_185309_01C",
+      "gvkey": 185309,
+      "iid": "01C",
+      "algo_score_raw": 0.28829514882087465,
+      "algo_score_normalized": 1.0,
+      "ml_score_raw": 2.2476513385772705,
+      "ml_score_normalized": 1.0,
+      "combined_score": 1.0,
+      "candidate_type": "long",
+      "portfolio_weight": 1.0
+    },
+    {
+      "company_id": "comp_020695_01C",
+      "gvkey": 20695,
+      "iid": "01C",
+      "algo_score_raw": 0.27460655095547626,
+      "algo_score_normalized": 0.0,
+      "ml_score_raw": -0.3181571662425995,
+      "ml_score_normalized": 0.0,
+      "combined_score": 0.0,
+      "candidate_type": "long",
+      "portfolio_weight": 0.0
+    }
+  ],
+  "short_positions": [
+    {
+      "company_id": "comp_105590_01C",
+      "gvkey": 105590,
+      "iid": "01C",
+      "algo_score_raw": 0.04810958006135893,
+      "algo_score_normalized": 1.0,
+      "ml_score_raw": -1.9730823040008545,
+      "ml_score_normalized": 1.0,
+      "combined_score": 1.0,
+      "candidate_type": "short",
+      "portfolio_weight": -1.0
+    },
+    {
+      "company_id": "comp_029111_01C",
+      "gvkey": 29111,
+      "iid": "01C",
+      "algo_score_raw": 0.049196446471682136,
+      "algo_score_normalized": 0.0,
+      "ml_score_raw": 5.3321919441223145,
+      "ml_score_normalized": 0.0,
+      "combined_score": 0.0,
+      "candidate_type": "short",
+      "portfolio_weight": -0.0
+    }
+  ],
+  "summary": {
+    "total_long_positions": 2,
+    "total_short_positions": 2,
+    "total_positions": 4,
+    "long_combined_scores": [
+      1.0,
+      0.0
+    ],
+    "short_combined_scores": [
+      1.0,
+      0.0
+    ],
+    "long_weights_sum": 1.0,
+    "short_weights_sum": -1.0,
+    "creation_date": "2025-10-05T13:32:21.083707"
+  },
+  "parameters": {
+    "algo_weight": 0.6,
+    "ml_weight": 0.4
+  },
+  "metadata": {
+    "sector": "energy",
+    "target_year": 2023,
+    "target_month": 1,
+    "pipeline_version": "1.0",
+    "creation_timestamp": "2025-10-05T13:32:21.083707"
+  }
+}

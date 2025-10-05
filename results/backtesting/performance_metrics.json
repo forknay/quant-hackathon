@@ -1,0 +1,20 @@
+{
+  "avg_monthly_return": 0.009982258043173058,
+  "avg_annual_return": 0.1197870965180767,
+  "total_return": 0.12653507222361982,
+  "monthly_volatility": 0.0029383434724274266,
+  "annual_volatility": 0.010178720368665326,
+  "sharpe_ratio": 11.76838464752752,
+  "information_ratio": -1.1714121761557263,
+  "sp500_avg_monthly_return": 0.019838212235349473,
+  "sp500_avg_annual_return": 0.2380585468241937,
+  "sp500_annual_volatility": 0.10312506958158872,
+  "sp500_total_return": 0.25996841848061036,
+  "monthly_alpha": -0.009855954192176419,
+  "annual_alpha": -0.11827145030611702,
+  "win_rate": 1.0,
+  "months_tracked": 12,
+  "max_monthly_return": 0.014234054012313846,
+  "min_monthly_return": 0.005721780338243811,
+  "max_drawdown": 0.0
+}

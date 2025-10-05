@@ -1,0 +1,77 @@
+====================================================================================================
+ENHANCED PORTFOLIO PERFORMANCE ANALYSIS
+====================================================================================================
+
+ANALYSIS PERIOD
+--------------------------------------------------
+Start Date:                2023-01-01 00:00:00
+End Date:                  2023-01-01 00:00:00
+Total Months:              1
+Years Analyzed:            0.1
+
+RETURN ANALYSIS
+--------------------------------------------------
+Annualized Return:         -13.18%
+Total Return:              -1.17%
+Average Monthly Return:    -1.17%
+Best Month:                -1.17% (2023-01-01 00:00:00)
+Worst Month:               -1.17% (2023-01-01 00:00:00)
+
+RISK ANALYSIS
+--------------------------------------------------
+Annual Volatility:         nan%
+Downside Volatility:       nan%
+Maximum Drawdown:          0.00%
+Average Drawdown:          0.00%
+VaR (95%):                 -1.17%
+VaR (99%):                 -1.17%
+Conditional VaR (95%):     -1.17%
+
+RISK-ADJUSTED PERFORMANCE
+--------------------------------------------------
+Sharpe Ratio:              0.000
+Sortino Ratio:             0.000
+Information Ratio:         0.000
+Win Rate:                  0.00%
+Win Rate vs S&P 500:       0.00%
+
+MARKET ANALYSIS (vs S&P 500)
+--------------------------------------------------
+Beta:                      -0.420
+Annual Alpha:              -503.97%
+Alpha t-statistic:         -0.000
+Alpha p-value:             nan
+R-squared:                 -inf
+Tracking Error:            nan%
+
+BENCHMARK COMPARISON
+--------------------------------------------------
+Portfolio Annualized:      -13.18%
+S&P 500 Annualized:        39.08%
+Excess Return:             -52.25%
+Portfolio Volatility:      nan%
+S&P 500 Volatility:        nan%
+Portfolio Total Return:    -1.17%
+S&P 500 Total Return:      2.79%
+
+DISTRIBUTION ANALYSIS
+--------------------------------------------------
+Skewness:                  nan
+Kurtosis:                  nan
+
+PERFORMANCE ATTRIBUTION
+--------------------------------------------------
+Long Portfolio Contribution: -0.11%
+Short Portfolio Contribution: -27.98%
+Long Portfolio Volatility:   nan%
+Short Portfolio Volatility:  nan%
+
+STATISTICAL SIGNIFICANCE
+--------------------------------------------------
+Alpha Statistically Significant (p<0.05): No
+WARNING: Alpha is not statistically significant at 5% level.
+
+====================================================================================================
+Analysis completed using Enhanced Portfolio Analyzer
+Generated on: 2025-10-05 13:51:47
+====================================================================================================

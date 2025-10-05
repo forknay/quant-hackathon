@@ -1,0 +1,81 @@
+{
+  "long_positions": [
+    {
+      "company_id": "comp_324068_01W",
+      "gvkey": 324068,
+      "iid": "01W",
+      "algo_score_raw": 0.42901036956977534,
+      "algo_score_normalized": 1.0,
+      "ml_score_raw": 18.42263412475586,
+      "ml_score_normalized": 0.0,
+      "combined_score": 0.6,
+      "candidate_type": "long",
+      "portfolio_weight": 0.6
+    },
+    {
+      "company_id": "comp_253359_01W",
+      "gvkey": 253359,
+      "iid": "01W",
+      "algo_score_raw": 0.3767385926370156,
+      "algo_score_normalized": 0.0,
+      "ml_score_raw": 24.681554794311523,
+      "ml_score_normalized": 1.0,
+      "combined_score": 0.4,
+      "candidate_type": "long",
+      "portfolio_weight": 0.4
+    }
+  ],
+  "short_positions": [
+    {
+      "company_id": "comp_334971_01W",
+      "gvkey": 334971,
+      "iid": "01W",
+      "algo_score_raw": 0.019328066758756673,
+      "algo_score_normalized": 1.0,
+      "ml_score_raw": -9.975451469421387,
+      "ml_score_normalized": 1.0,
+      "combined_score": 1.0,
+      "candidate_type": "short",
+      "portfolio_weight": -1.0
+    },
+    {
+      "company_id": "comp_336650_01W",
+      "gvkey": 336650,
+      "iid": "01W",
+      "algo_score_raw": 0.023450039166084152,
+      "algo_score_normalized": 0.0,
+      "ml_score_raw": 10.465182304382324,
+      "ml_score_normalized": 0.0,
+      "combined_score": 0.0,
+      "candidate_type": "short",
+      "portfolio_weight": -0.0
+    }
+  ],
+  "summary": {
+    "total_long_positions": 2,
+    "total_short_positions": 2,
+    "total_positions": 4,
+    "long_combined_scores": [
+      0.6,
+      0.4
+    ],
+    "short_combined_scores": [
+      1.0,
+      0.0
+    ],
+    "long_weights_sum": 1.0,
+    "short_weights_sum": -1.0,
+    "creation_date": "2025-10-05T13:45:51.376955"
+  },
+  "parameters": {
+    "algo_weight": 0.6,
+    "ml_weight": 0.4
+  },
+  "metadata": {
+    "sector": "cons_discretionary",
+    "target_year": 2023,
+    "target_month": 1,
+    "pipeline_version": "1.0",
+    "creation_timestamp": "2025-10-05T13:45:51.377955"
+  }
+}
