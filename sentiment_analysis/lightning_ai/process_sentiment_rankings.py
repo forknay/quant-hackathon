@@ -9,15 +9,154 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import json
+import os
 
-def process_sentiment_rankings(results_file=None):
-    """Process FinBERT results and create sentiment rankings"""
+def extract_real_textdata_for_stocks(stock_identifiers=['1004:01', '1045:01', '1050:01'], year_range=(2023, 2025)):
+    """
+    Extract real TextData for the specified stocks from the parquet files.
+    This replaces mock data with actual SEC filing texts.
+    
+    Args:
+        stock_identifiers: List of stock IDs in format 'GVKEY:IID' (e.g., ['1004:01', '1045:01'])
+        year_range: Tuple of (start_year, end_year) to search (default: 2023-2025)
+    """
+    print(f"[INFO] Extracting real TextData for stocks: {stock_identifiers}")
+    print(f"[INFO] Searching years: {year_range[0]} to {year_range[1]}")
+    
+    # Convert stock identifiers to GVKEY (TextData doesn't have IID, just GVKEY)
+    target_gvkeys = []
+    for stock_id in stock_identifiers:
+        gvkey, iid = stock_id.split(':')
+        # Try to convert to int, but keep as string if it fails (for BOT_01, TOP_01, etc.)
+        try:
+            target_gvkeys.append(int(gvkey))
+        except ValueError:
+            target_gvkeys.append(gvkey)
+    
+    print(f"  Target GVKEYs: {target_gvkeys}")
+    
+    all_texts = []
+    
+    # Extract from all years in range (2023, 2024, 2025)
+    for year in range(year_range[0], year_range[1] + 1):
+        parquet_path = f"TextData/{year}/text_us_{year}.parquet"
+        if os.path.exists(parquet_path):
+            print(f"  Loading {parquet_path}...")
+            df = pd.read_parquet(parquet_path)
+            
+            # Filter for our target stocks
+            for gvkey in target_gvkeys:
+                stock_data = df[df['gvkey'] == gvkey].copy()
+                if not stock_data.empty:
+                    # Add IID column (default to '01' since TextData doesn't have IID)
+                    stock_data['iid'] = '01'
+                    # Add year column if it doesn't exist
+                    if 'year' not in stock_data.columns:
+                        stock_data['year'] = year
+                    print(f"    Found {len(stock_data)} texts for GVKEY {gvkey} in {year}")
+                    all_texts.append(stock_data)
+        else:
+            print(f"  [WARNING] File not found: {parquet_path}")
+    
+    if all_texts:
+        combined_texts = pd.concat(all_texts, ignore_index=True)
+        print(f"[SUCCESS] Extracted {len(combined_texts)} total texts from real TextData")
+        print(f"  Stocks: {sorted(combined_texts['gvkey'].unique())}")
+        print(f"  Years: {sorted(combined_texts['year'].unique())}")
+        return combined_texts
+    else:
+        print("[WARNING] No real TextData found for specified stocks")
+        return pd.DataFrame()
+
+def process_sentiment_rankings(results_file=None, use_real_data=True, stock_identifiers=None):
+    """
+    Process FinBERT results and create sentiment rankings with enhanced normalization.
+    
+    Args:
+        results_file: Path to FinBERT results CSV (if None, will look for default)
+        use_real_data: If True, extract real TextData; if False, use existing files
+        stock_identifiers: List of stock IDs from algorithm (e.g., ['1004:01', '1045:01'])
+    """
     print("PROCESSING REAL STOCK SENTIMENT RANKINGS")
     print("=" * 60)
     
-    # Load FinBERT results
+    # Load or prepare data for FinBERT processing
     if results_file is None:
-        results_file = "finbert_results_real_stocks_20251004_185131.csv"
+        if use_real_data:
+            print("[INFO] No FinBERT results provided. Extracting real TextData for processing...")
+            # Use provided stock identifiers or default test stocks
+            stocks_to_process = stock_identifiers if stock_identifiers is not None else ['1004:01', '1045:01', '1050:01']
+            print(f"[INPUT] Processing stocks from algorithm: {stocks_to_process}")
+            real_texts = extract_real_textdata_for_stocks(stock_identifiers=stocks_to_process)
+            if not real_texts.empty:
+                # Create input file for FinBERT processing on Lightning.ai
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                input_file = f"finbert_input_real_stocks_{timestamp}.csv"
+                
+                # Prepare texts for FinBERT (handles both rf/mgmt format and single text format)
+                finbert_input = []
+                for idx, row in real_texts.iterrows():
+                    stock_id = f"{row['gvkey']}:{row['iid']}"
+                    
+                    # Handle 2023/2025 format with separate rf and mgmt columns
+                    if 'rf' in row and pd.notna(row['rf']) and str(row['rf']).strip():
+                        finbert_input.append({
+                            'text_id': f"REAL_{row['gvkey']}_{row['iid']}_rf_{row['date']}_{len(finbert_input)+1:04d}",
+                            'gvkey': row['gvkey'],
+                            'iid': row['iid'],
+                            'stock_identifier': stock_id,
+                            'text': str(row['rf'])[:50000],  # Limit text length for FinBERT
+                            'text_type': 'rf',
+                            'date': row['date'],
+                            'year': row['year'] if 'year' in row else row['date']//10000,
+                            'filing_type': row.get('filing_type', row.get('file_type', '10K')),
+                            'source': 'real_textdata'
+                        })
+                    
+                    if 'mgmt' in row and pd.notna(row['mgmt']) and str(row['mgmt']).strip():
+                        finbert_input.append({
+                            'text_id': f"REAL_{row['gvkey']}_{row['iid']}_mgmt_{row['date']}_{len(finbert_input)+1:04d}",
+                            'gvkey': row['gvkey'],
+                            'iid': row['iid'], 
+                            'stock_identifier': stock_id,
+                            'text': str(row['mgmt'])[:50000],  # Limit text length for FinBERT
+                            'text_type': 'mgmt',
+                            'date': row['date'],
+                            'year': row['year'] if 'year' in row else row['date']//10000,
+                            'filing_type': row.get('filing_type', row.get('file_type', '10K')),
+                            'source': 'real_textdata'
+                        })
+                    
+                    # Handle 2024 format with single text column
+                    elif 'text' in row and pd.notna(row['text']) and str(row['text']).strip():
+                        finbert_input.append({
+                            'text_id': f"REAL_{row['gvkey']}_{row['iid']}_text_{row['date']}_{len(finbert_input)+1:04d}",
+                            'gvkey': row['gvkey'],
+                            'iid': row['iid'],
+                            'stock_identifier': stock_id,
+                            'text': str(row['text'])[:50000],  # Limit text length for FinBERT
+                            'text_type': 'general',
+                            'date': row['date'],
+                            'year': row['year'] if 'year' in row else row['date']//10000,
+                            'filing_type': row.get('filing_type', row.get('file_type', '10K')),
+                            'source': 'real_textdata'
+                        })
+                
+                if finbert_input:
+                    df_input = pd.DataFrame(finbert_input)
+                    df_input.to_csv(input_file, index=False)
+                    print(f"[SUCCESS] Created FinBERT input file: {input_file}")
+                    print(f"[INFO] Ready for FinBERT processing: {len(df_input)} real texts from {df_input['stock_identifier'].nunique()} stocks")
+                    print(f"[NEXT] Upload this file to Lightning.ai and run FinBERT, then process results with this function")
+                    return df_input
+                else:
+                    print("[ERROR] No valid texts found in real TextData")
+                    return None
+            else:
+                print("[ERROR] Could not extract real TextData")
+                return None
+        else:
+            results_file = "finbert_results_real_stocks_20251004_185131.csv"
     
     # Try to find corresponding metadata file
     if results_file.endswith('.json'):
@@ -38,9 +177,9 @@ def process_sentiment_rankings(results_file=None):
     
     try:
         df_results = pd.read_csv(results_file)
-        print(f"✅ Loaded {len(df_results)} sentiment results")
+        print(f"[SUCCESS] Loaded {len(df_results)} sentiment results")
     except FileNotFoundError:
-        print(f"❌ Results file not found: {results_file}")
+        print(f"[ERROR] Results file not found: {results_file}")
         print("Make sure you've run the FinBERT processing first!")
         return
     
@@ -48,21 +187,24 @@ def process_sentiment_rankings(results_file=None):
     try:
         with open(metadata_file, 'r') as f:
             metadata = json.load(f)
-        print(f"✅ Loaded metadata for {len(metadata.get('input_stocks', []))} input stocks")
+        print(f"[SUCCESS] Loaded metadata for {len(metadata.get('input_stocks', []))} input stocks")
     except FileNotFoundError:
-        print(f"⚠️  Metadata file not found: {metadata_file}")
+        print(f"[WARNING] Metadata file not found: {metadata_file}")
         metadata = {}
     
     # Convert FinBERT labels to numerical scores
-    print("\n📊 Converting sentiment labels to scores...")
+    print("\n[INFO] Converting sentiment labels to scores...")
     
     df_results['positive_score'] = 0.0
     df_results['negative_score'] = 0.0
     df_results['neutral_score'] = 0.0
     
+    # Handle flexible column naming for confidence/sentiment scores
+    confidence_col = 'confidence_score' if 'confidence_score' in df_results.columns else 'sentiment_score'
+    
     for idx, row in df_results.iterrows():
         label = row['sentiment_label'].lower()
-        score = row['sentiment_score']
+        score = row.get(confidence_col, 0.5)  # Default to 0.5 if column missing
         
         if label == 'positive':
             df_results.at[idx, 'positive_score'] = score
@@ -91,7 +233,7 @@ def process_sentiment_rankings(results_file=None):
     print(f"  Neutral: {(df_results['sentiment_label'] == 'Neutral').sum()}")
     
     # Aggregate by stock
-    print("\n📈 Aggregating sentiment by stock...")
+    print("\n[INFO] Aggregating sentiment by stock...")
     
     stock_sentiment = df_results.groupby('stock_identifier').agg({
         'gvkey': 'first',
@@ -101,7 +243,7 @@ def process_sentiment_rankings(results_file=None):
         'neutral_score': 'mean',
         'net_sentiment': 'mean',
         'numeric_sentiment': 'mean',
-        'sentiment_score': 'mean',
+        confidence_col: 'mean',
         'text_id': 'count',
         'text_type': lambda x: list(x.unique()),
         'year': lambda x: list(sorted(x.unique()))
@@ -120,7 +262,7 @@ def process_sentiment_rankings(results_file=None):
     )
     
     # NORMALIZATION: Create normalized scores that sum to 1 across all stocks
-    print("\n🔢 Calculating normalized sentiment scores...")
+    print("\n[INFO] Calculating normalized sentiment scores...")
     
     # Method 1: Min-Max Normalization (0 to 1 scale)
     min_sentiment = stock_sentiment['numeric_sentiment'].min()
@@ -157,9 +299,9 @@ def process_sentiment_rankings(results_file=None):
         shifted_sentiment = stock_sentiment['numeric_sentiment'] - min_sentiment + 0.1  # Add small positive offset
         stock_sentiment['normalized_score_linear'] = shifted_sentiment / shifted_sentiment.sum()
     
-    print(f"  ✅ Min-Max normalized scores (sum = {stock_sentiment['normalized_score_minmax'].sum():.3f})")
-    print(f"  ✅ Softmax normalized scores (sum = {stock_sentiment['normalized_score_softmax'].sum():.3f})")
-    print(f"  ✅ Linear normalized scores (sum = {stock_sentiment['normalized_score_linear'].sum():.3f})")
+    print(f"  [SUCCESS] Min-Max normalized scores (sum = {stock_sentiment['normalized_score_minmax'].sum():.3f})")
+    print(f"  [SUCCESS] Softmax normalized scores (sum = {stock_sentiment['normalized_score_softmax'].sum():.3f})")
+    print(f"  [SUCCESS] Linear normalized scores (sum = {stock_sentiment['normalized_score_linear'].sum():.3f})")
     
     # Add sentiment strength category
     def categorize_sentiment(net_sent):
@@ -184,18 +326,18 @@ def process_sentiment_rankings(results_file=None):
     output_file = f"stock_sentiment_rankings_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     stock_sentiment.to_csv(output_file, index=False)
     
-    print(f"\n🏆 FINAL SENTIMENT RANKINGS WITH NORMALIZED SCORES")
+    print(f"\n[FINAL] FINAL SENTIMENT RANKINGS WITH NORMALIZED SCORES")
     print("=" * 80)
     display_cols = ['sentiment_rank', 'stock_identifier', 'numeric_sentiment', 'normalized_score_minmax', 
                    'normalized_score_softmax', 'normalized_score_linear', 'sentiment_category', 'text_count']
     print(stock_sentiment[display_cols].to_string(index=False))
     
-    print(f"\n🔢 NORMALIZATION VALIDATION:")
+    print(f"\n[VALIDATION] NORMALIZATION VALIDATION:")
     print(f"  • Min-Max normalized sum: {stock_sentiment['normalized_score_minmax'].sum():.6f}")
     print(f"  • Softmax normalized sum: {stock_sentiment['normalized_score_softmax'].sum():.6f}")
     print(f"  • Linear normalized sum: {stock_sentiment['normalized_score_linear'].sum():.6f}")
     
-    print(f"\n📊 SCORE RANGES:")
+    print(f"\n[INFO] SCORE RANGES:")
     print(f"  • Numeric sentiment: {stock_sentiment['numeric_sentiment'].min():.3f} to {stock_sentiment['numeric_sentiment'].max():.3f}")
     print(f"  • Min-Max normalized: {stock_sentiment['normalized_score_minmax'].min():.3f} to {stock_sentiment['normalized_score_minmax'].max():.3f}")
     print(f"  • Softmax normalized: {stock_sentiment['normalized_score_softmax'].min():.3f} to {stock_sentiment['normalized_score_softmax'].max():.3f}")
@@ -222,7 +364,7 @@ def process_sentiment_rankings(results_file=None):
             print("  No text type breakdown available")
     
     # Summary statistics
-    print(f"\n📊 SUMMARY STATISTICS")
+    print(f"\n[INFO] SUMMARY STATISTICS")
     print("=" * 60)
     print(f"Total stocks analyzed: {len(stock_sentiment)}")
     print(f"Average net sentiment: {stock_sentiment['net_sentiment'].mean():.4f}")
@@ -236,7 +378,7 @@ def process_sentiment_rankings(results_file=None):
     for category, count in sentiment_dist.items():
         print(f"  {category}: {count} stocks")
     
-    print(f"\n💾 Results saved to: {output_file}")
+    print(f"\n[SUCCESS] Results saved to: {output_file}")
     
     # Create summary report
     summary = {
@@ -260,9 +402,52 @@ def process_sentiment_rankings(results_file=None):
         json.dump(summary, f, indent=2)
     
     print(f"📋 Summary saved to: {summary_file}")
-    print("\n🎯 Stock sentiment analysis complete!")
+    print("\n[COMPLETE] Stock sentiment analysis complete!")
     
     return output_file, summary_file
 
+def process_sentiment_rankings_complete(stock_identifiers):
+    """
+    Complete end-to-end sentiment processing: Algorithm stocks → SEC filings → FinBERT → Rankings
+    
+    Args:
+        stock_identifiers: List of stock IDs from your algorithm (e.g., ['1004:01', '1045:01'])
+        
+    Returns:
+        dict: Complete results with normalized sentiment rankings
+    """
+    print("END-TO-END SENTIMENT PROCESSING")
+    print("=" * 50)
+    print(f"Input from algorithm: {len(stock_identifiers)} stocks")
+    print(f"Stocks to process: {stock_identifiers}")
+    
+    # Step 1: Extract SEC filings for algorithm stocks
+    print("\nSTEP 1: Finding SEC filings for algorithm stocks...")
+    real_texts = extract_real_textdata_for_stocks(stock_identifiers=stock_identifiers)
+    
+    if real_texts.empty:
+        print("ERROR: No SEC filings found for provided stocks")
+        return None
+    
+    # Step 2: Prepare for FinBERT processing  
+    print(f"\nSTEP 2: Found {len(real_texts)} SEC filing texts")
+    print("Preparing FinBERT input file...")
+    
+    # Generate FinBERT input file (for Lightning.ai or local processing)
+    result = process_sentiment_rankings(stock_identifiers=stock_identifiers, use_real_data=True)
+    
+    print(f"\nCOMPLETE: FinBERT input file ready for processing")
+    print("Next: Process on Lightning.ai or run local FinBERT")
+    print("Final step: Apply normalization to get sentiment rankings (sum=1.0)")
+    
+    return {
+        'input_stocks': stock_identifiers,
+        'sec_filings_found': len(real_texts),
+        'finbert_input_file': f"finbert_input_real_stocks_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+        'status': 'ready_for_finbert_processing'
+    }
+
 if __name__ == "__main__":
-    process_sentiment_rankings()
+    # Default test with 3 stocks
+    test_stocks = ['1004:01', '1045:01', '1050:01']
+    process_sentiment_rankings_complete(test_stocks)

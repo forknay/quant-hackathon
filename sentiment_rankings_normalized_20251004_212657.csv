@@ -1,4 +1,0 @@
-stock_identifier,avg_numeric_sentiment,std_numeric_sentiment,text_count,avg_confidence,dominant_sentiment,normalized_minmax,normalized_softmax,normalized_linear,rank
-1045:01,-0.5,0.7559,8,0.7775,negative,0.5238344683080146,0.3903124051548844,0.4782781984854524,1
-1050:01,-0.5455,0.6876,11,0.7141,negative,0.47616553169198533,0.3729511542524988,0.4420087684336389,2
-1004:01,-1.0,0.0,2,0.7562,negative,0.0,0.2367364405926167,0.07971303308090874,3
