@@ -3,6 +3,8 @@ Stock Sentiment Ranking Processor
 
 Processes FinBERT sentiment results from real stock TextData
 and generates final sentiment-based rankings.
+
+For Lightning.ai: Use lightning_finbert_complete() function
 """
 
 import pandas as pd
@@ -10,6 +12,138 @@ import numpy as np
 from datetime import datetime
 import json
 import os
+
+def normalize_sentiment_scores(results_df, method='minmax', score_column='confidence_score'):
+    """
+    Apply enhanced normalization ensuring scores sum to exactly 1.0
+    
+    Args:
+        results_df: DataFrame with sentiment results
+        method: 'minmax', 'softmax', or 'linear' 
+        score_column: Column containing sentiment scores
+        
+    Returns:
+        DataFrame: Stock-level normalized sentiment rankings
+    """
+    print(f"Applying {method} normalization...")
+    
+    # Aggregate scores by stock
+    stock_scores = results_df.groupby('stock_identifier')[score_column].mean().reset_index()
+    
+    if method == 'minmax':
+        # Min-Max normalization to [0,1], then normalize to sum=1
+        min_score = stock_scores[score_column].min()
+        max_score = stock_scores[score_column].max()
+        
+        if max_score == min_score:
+            stock_scores['normalized_score'] = 1.0 / len(stock_scores)
+        else:
+            scaled = (stock_scores[score_column] - min_score) / (max_score - min_score)
+            stock_scores['normalized_score'] = scaled / scaled.sum()
+            
+    elif method == 'softmax':
+        # Softmax normalization (probability distribution)
+        exp_scores = np.exp(stock_scores[score_column] - stock_scores[score_column].max())
+        stock_scores['normalized_score'] = exp_scores / exp_scores.sum()
+        
+    elif method == 'linear':
+        # Linear shift and scale to sum=1
+        shifted = stock_scores[score_column] - stock_scores[score_column].min() + 0.001
+        stock_scores['normalized_score'] = shifted / shifted.sum()
+    
+    # Verify normalization
+    total = stock_scores['normalized_score'].sum()
+    print(f"Normalized scores sum: {total:.6f}")
+    
+    return stock_scores.sort_values('normalized_score', ascending=False)
+
+def lightning_finbert_complete(stock_identifiers=None, input_csv=None):
+    """
+    COMPLETE Lightning.ai FinBERT processing - everything in one function
+    
+    Args:
+        stock_identifiers: List of stocks ['1004:01', '1045:01'] (optional)
+        input_csv: Path to uploaded CSV file on Lightning.ai (optional, auto-detects)
+    
+    Returns:
+        dict: Complete results with normalized sentiment rankings
+    """
+    try:
+        from transformers import pipeline
+    except ImportError:
+        raise ImportError("Install transformers: pip install transformers torch")
+    
+    print("🚀 COMPLETE LIGHTNING.AI FINBERT PROCESSING")
+    print("=" * 55)
+    
+    # Auto-detect input file if not specified
+    if input_csv is None:
+        csv_files = [f for f in os.listdir('.') if f.startswith('finbert_input_') and f.endswith('.csv')]
+        if csv_files:
+            input_csv = csv_files[0]
+            print(f"📁 Using input file: {input_csv}")
+        else:
+            raise FileNotFoundError("Upload finbert_input_*.csv file to Lightning.ai Studio")
+    
+    # Load data
+    df = pd.read_csv(input_csv)
+    print(f"📊 Loaded {len(df)} texts for processing")
+    
+    # Initialize FinBERT
+    print("⚡ Initializing FinBERT model...")
+    finbert = pipeline("text-classification", model="ProsusAI/finbert", device=0)
+    
+    # Process all texts
+    print("🧠 Running FinBERT sentiment analysis...")
+    results = []
+    
+    for idx, row in df.iterrows():
+        if idx % 10 == 0:
+            print(f"Processing {idx+1}/{len(df)}...")
+        
+        result = finbert(str(row['text'])[:512])  # FinBERT max length
+        
+        results.append({
+            'text_id': row.get('text_id', f"text_{idx}"),
+            'stock_identifier': row.get('stock_identifier', f"{row.get('gvkey', 'UNK')}:01"),
+            'gvkey': row.get('gvkey', 'UNK'),
+            'confidence_score': result[0]['score'],
+            'label': result[0]['label']
+        })
+    
+    results_df = pd.DataFrame(results)
+    
+    # Apply all 3 normalization methods
+    print("📈 Applying enhanced normalization...")
+    
+    normalized_minmax = normalize_sentiment_scores(results_df, method='minmax')
+    normalized_softmax = normalize_sentiment_scores(results_df, method='softmax')
+    normalized_linear = normalize_sentiment_scores(results_df, method='linear')
+    
+    # Save results
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    
+    results_df.to_csv(f'finbert_results_{timestamp}.csv', index=False)
+    normalized_minmax.to_csv(f'sentiment_rankings_minmax_{timestamp}.csv', index=False)
+    normalized_softmax.to_csv(f'sentiment_rankings_softmax_{timestamp}.csv', index=False)
+    normalized_linear.to_csv(f'sentiment_rankings_linear_{timestamp}.csv', index=False)
+    
+    print(f"\n✅ COMPLETE! Results saved:")
+    print(f"- finbert_results_{timestamp}.csv")
+    print(f"- sentiment_rankings_minmax_{timestamp}.csv") 
+    print(f"- sentiment_rankings_softmax_{timestamp}.csv")
+    print(f"- sentiment_rankings_linear_{timestamp}.csv")
+    
+    print(f"\n🎯 TOP SENTIMENT STOCKS (Min-Max):")
+    print(normalized_minmax[['stock_identifier', 'normalized_score']].head())
+    
+    return {
+        'raw_results': results_df,
+        'minmax_rankings': normalized_minmax,
+        'softmax_rankings': normalized_softmax,
+        'linear_rankings': normalized_linear,
+        'timestamp': timestamp
+    }
 
 def extract_real_textdata_for_stocks(stock_identifiers=['1004:01', '1045:01', '1050:01'], year_range=(2023, 2025)):
     """
