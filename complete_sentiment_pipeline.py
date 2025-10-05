@@ -414,6 +414,141 @@ def process_stocks_sentiment(stock_identifiers=None, input_csv=None, max_texts_p
         'timestamp': timestamp
     }
 
+def process_dual_stock_lists(positive_outlook_stocks, negative_outlook_stocks, max_texts_per_stock=50):
+    """
+    DUAL-LIST PIPELINE: Process two separate lists of stocks (positive vs negative outlook)
+    
+    Args:
+        positive_outlook_stocks: List of stocks with positive outlook ['31846:01', '62169:01']
+        negative_outlook_stocks: List of stocks with negative outlook ['10349:01', '7906:01']
+        max_texts_per_stock: Maximum texts to process per stock
+    
+    Returns:
+        dict: Complete results for both lists with separate rankings
+    """
+    print("[DUAL-LIST PIPELINE] PROCESSING POSITIVE & NEGATIVE OUTLOOK STOCKS")
+    print("=" * 65)
+    print(f"[START] Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    results = {
+        'positive_outlook': None,
+        'negative_outlook': None,
+        'combined_summary': {},
+        'timestamp': datetime.now().strftime('%Y%m%d_%H%M%S')
+    }
+    
+    # Process Positive Outlook Stocks
+    if positive_outlook_stocks:
+        print(f"\n🟢 PROCESSING POSITIVE OUTLOOK STOCKS: {positive_outlook_stocks}")
+        print("-" * 50)
+        
+        pos_texts_df = extract_textdata_for_stocks(positive_outlook_stocks, max_texts_per_stock=max_texts_per_stock)
+        print(f"[POSITIVE] Extracted {len(pos_texts_df)} texts from {len(pos_texts_df['stock_identifier'].unique())} positive outlook stocks")
+        
+        pos_results_df = run_finbert_analysis(pos_texts_df)
+        
+        # Apply normalization for positive stocks
+        print("[POSITIVE] Generating sentiment rankings...")
+        pos_minmax = normalize_sentiment_scores(pos_results_df, method='minmax')
+        pos_softmax = normalize_sentiment_scores(pos_results_df, method='softmax') 
+        pos_linear = normalize_sentiment_scores(pos_results_df, method='linear')
+        
+        results['positive_outlook'] = {
+            'raw_results': pos_results_df,
+            'minmax_rankings': pos_minmax,
+            'softmax_rankings': pos_softmax,
+            'linear_rankings': pos_linear,
+            'stocks_processed': positive_outlook_stocks,
+            'texts_extracted': len(pos_texts_df),
+            'average_confidence': float(pos_results_df['confidence_score'].mean())
+        }
+        
+        # Save positive results
+        timestamp = results['timestamp']
+        pos_results_df.to_csv(f'finbert_results_positive_{timestamp}.csv', index=False)
+        pos_minmax.to_csv(f'sentiment_rankings_positive_minmax_{timestamp}.csv', index=False)
+        pos_softmax.to_csv(f'sentiment_rankings_positive_softmax_{timestamp}.csv', index=False)
+        pos_linear.to_csv(f'sentiment_rankings_positive_linear_{timestamp}.csv', index=False)
+    
+    # Process Negative Outlook Stocks
+    if negative_outlook_stocks:
+        print(f"\n🔴 PROCESSING NEGATIVE OUTLOOK STOCKS: {negative_outlook_stocks}")
+        print("-" * 50)
+        
+        neg_texts_df = extract_textdata_for_stocks(negative_outlook_stocks, max_texts_per_stock=max_texts_per_stock)
+        print(f"[NEGATIVE] Extracted {len(neg_texts_df)} texts from {len(neg_texts_df['stock_identifier'].unique())} negative outlook stocks")
+        
+        neg_results_df = run_finbert_analysis(neg_texts_df)
+        
+        # Apply normalization for negative stocks
+        print("[NEGATIVE] Generating sentiment rankings...")
+        neg_minmax = normalize_sentiment_scores(neg_results_df, method='minmax')
+        neg_softmax = normalize_sentiment_scores(neg_results_df, method='softmax')
+        neg_linear = normalize_sentiment_scores(neg_results_df, method='linear')
+        
+        results['negative_outlook'] = {
+            'raw_results': neg_results_df,
+            'minmax_rankings': neg_minmax,
+            'softmax_rankings': neg_softmax,
+            'linear_rankings': neg_linear,
+            'stocks_processed': negative_outlook_stocks,
+            'texts_extracted': len(neg_texts_df),
+            'average_confidence': float(neg_results_df['confidence_score'].mean())
+        }
+        
+        # Save negative results
+        timestamp = results['timestamp']
+        neg_results_df.to_csv(f'finbert_results_negative_{timestamp}.csv', index=False)
+        neg_minmax.to_csv(f'sentiment_rankings_negative_minmax_{timestamp}.csv', index=False)
+        neg_softmax.to_csv(f'sentiment_rankings_negative_softmax_{timestamp}.csv', index=False)
+        neg_linear.to_csv(f'sentiment_rankings_negative_linear_{timestamp}.csv', index=False)
+    
+    # Create combined summary
+    results['combined_summary'] = {
+        'timestamp': timestamp,
+        'positive_outlook_stocks': positive_outlook_stocks if positive_outlook_stocks else [],
+        'negative_outlook_stocks': negative_outlook_stocks if negative_outlook_stocks else [],
+        'positive_texts_processed': results['positive_outlook']['texts_extracted'] if results['positive_outlook'] else 0,
+        'negative_texts_processed': results['negative_outlook']['texts_extracted'] if results['negative_outlook'] else 0,
+        'positive_avg_confidence': results['positive_outlook']['average_confidence'] if results['positive_outlook'] else 0,
+        'negative_avg_confidence': results['negative_outlook']['average_confidence'] if results['negative_outlook'] else 0
+    }
+    
+    # Save combined summary
+    with open(f'dual_sentiment_summary_{timestamp}.json', 'w') as f:
+        json.dump(results['combined_summary'], f, indent=2)
+    
+    # Display results
+    print(f"\n✅ DUAL-LIST PIPELINE COMPLETE!")
+    print(f"⏰ Completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    if results['positive_outlook']:
+        print(f"\n🟢 POSITIVE OUTLOOK RESULTS:")
+        print(f"📊 Processed {results['positive_outlook']['texts_extracted']} texts from {len(positive_outlook_stocks)} stocks")
+        print(f"📈 Average confidence: {results['positive_outlook']['average_confidence']:.3f}")
+        print("Top sentiment stocks (Min-Max):")
+        print(results['positive_outlook']['minmax_rankings'][['stock_identifier', 'normalized_score']].head())
+        print(f"Sum: {results['positive_outlook']['minmax_rankings']['normalized_score'].sum():.6f}")
+    
+    if results['negative_outlook']:
+        print(f"\n🔴 NEGATIVE OUTLOOK RESULTS:")
+        print(f"📊 Processed {results['negative_outlook']['texts_extracted']} texts from {len(negative_outlook_stocks)} stocks")
+        print(f"📈 Average confidence: {results['negative_outlook']['average_confidence']:.3f}")
+        print("Top sentiment stocks (Min-Max):")
+        print(results['negative_outlook']['minmax_rankings'][['stock_identifier', 'normalized_score']].head())
+        print(f"Sum: {results['negative_outlook']['minmax_rankings']['normalized_score'].sum():.6f}")
+    
+    print(f"\n📁 Files created:")
+    if results['positive_outlook']:
+        print(f"- finbert_results_positive_{timestamp}.csv")
+        print(f"- sentiment_rankings_positive_*_{timestamp}.csv")
+    if results['negative_outlook']:
+        print(f"- finbert_results_negative_{timestamp}.csv")
+        print(f"- sentiment_rankings_negative_*_{timestamp}.csv")
+    print(f"- dual_sentiment_summary_{timestamp}.json")
+    
+    return results
+
 def validate_stock_input(stocks):
     """
     Validate and format stock identifiers
@@ -455,12 +590,25 @@ if __name__ == "__main__":
     
     # Check for command line arguments
     if len(sys.argv) > 1:
-        # Command line mode: python complete_sentiment_pipeline.py STOCK1 STOCK2 STOCK3
-        input_stocks = sys.argv[1:]
-        stocks = validate_stock_input(input_stocks)
-        print(f"[CMDLINE] Command line input: {stocks}")
-        
-        results = process_stocks_sentiment(stock_identifiers=stocks)
+        # Check if it's dual-list mode (--dual flag)
+        if '--dual' in sys.argv:
+            print("[DUAL-MODE] Testing dual-list processing...")
+            # Test with known stocks that exist in TextData
+            positive_stocks = ['31846:01']  # Known to exist
+            negative_stocks = ['62169:01']  # Known to exist
+            
+            print(f"[TEST] Positive outlook stocks: {positive_stocks}")
+            print(f"[TEST] Negative outlook stocks: {negative_stocks}")
+            
+            results = process_dual_stock_lists(positive_stocks, negative_stocks)
+            
+        else:
+            # Single-list mode: python complete_sentiment_pipeline.py STOCK1 STOCK2 STOCK3
+            input_stocks = sys.argv[1:]
+            stocks = validate_stock_input(input_stocks)
+            print(f"[CMDLINE] Command line input: {stocks}")
+            
+            results = process_stocks_sentiment(stock_identifiers=stocks)
         
     else:
         # Default mode: use STOCK_SYMBOLS or auto-detect CSV
@@ -503,14 +651,73 @@ def get_sentiment_rankings(algorithm_stocks, normalization_method='minmax'):
         print(f"[WARN] Unknown normalization method '{normalization_method}', using minmax")
         return results['minmax_rankings']
 
+def get_dual_sentiment_rankings(positive_outlook_stocks, negative_outlook_stocks, normalization_method='minmax'):
+    """
+    DUAL-LIST ALGORITHM INTEGRATION: Get separate sentiment rankings for positive and negative outlook stocks
+    
+    This is the function your algorithm should call when you have two separate lists of stocks.
+    
+    Args:
+        positive_outlook_stocks: List of stocks with positive outlook ['31846:01', '62169:01']
+        negative_outlook_stocks: List of stocks with negative outlook ['10349:01', '7906:01']
+        normalization_method: 'minmax', 'softmax', or 'linear'
+    
+    Returns:
+        dict: Separate sentiment rankings for both lists
+            {
+                'positive_rankings': DataFrame (normalized, sum=1.0),
+                'negative_rankings': DataFrame (normalized, sum=1.0),
+                'summary': dict with processing details
+            }
+    """
+    print(f"[DUAL-ALGORITHM] PROCESSING POSITIVE ({len(positive_outlook_stocks)}) & NEGATIVE ({len(negative_outlook_stocks)}) OUTLOOK STOCKS...")
+    
+    # Validate inputs
+    pos_stocks = validate_stock_input(positive_outlook_stocks) if positive_outlook_stocks else []
+    neg_stocks = validate_stock_input(negative_outlook_stocks) if negative_outlook_stocks else []
+    
+    # Run dual-list pipeline
+    results = process_dual_stock_lists(pos_stocks, neg_stocks)
+    
+    # Extract rankings based on normalization method
+    output = {
+        'positive_rankings': None,
+        'negative_rankings': None,
+        'summary': results['combined_summary']
+    }
+    
+    if results['positive_outlook']:
+        if normalization_method == 'minmax':
+            output['positive_rankings'] = results['positive_outlook']['minmax_rankings']
+        elif normalization_method == 'softmax':
+            output['positive_rankings'] = results['positive_outlook']['softmax_rankings']
+        elif normalization_method == 'linear':
+            output['positive_rankings'] = results['positive_outlook']['linear_rankings']
+        else:
+            print(f"[WARN] Unknown normalization method '{normalization_method}', using minmax for positive")
+            output['positive_rankings'] = results['positive_outlook']['minmax_rankings']
+    
+    if results['negative_outlook']:
+        if normalization_method == 'minmax':
+            output['negative_rankings'] = results['negative_outlook']['minmax_rankings']
+        elif normalization_method == 'softmax':
+            output['negative_rankings'] = results['negative_outlook']['softmax_rankings']
+        elif normalization_method == 'linear':
+            output['negative_rankings'] = results['negative_outlook']['linear_rankings']
+        else:
+            print(f"[WARN] Unknown normalization method '{normalization_method}', using minmax for negative")
+            output['negative_rankings'] = results['negative_outlook']['minmax_rankings']
+    
+    return output
+
 # EXAMPLE USAGE FOR ALGORITHMS:
 """
-# Example: How to integrate this with your trading algorithm
+# Example 1: Single-list algorithm integration (existing functionality)
 
 from complete_sentiment_pipeline import get_sentiment_rankings
 
 # Your algorithm generates a list of stocks to analyze
-algorithm_stocks = ['1004:01', '1045:01', '1050:01', '2034:01', '3567:01']
+algorithm_stocks = ['31846:01', '62169:01', '10349:01']
 
 # Get sentiment rankings (normalized to sum=1.0)
 sentiment_rankings = get_sentiment_rankings(algorithm_stocks, normalization_method='softmax')
@@ -524,4 +731,59 @@ for _, row in sentiment_rankings.iterrows():
 # Rankings are already sorted by sentiment (best first)
 top_stock = sentiment_rankings.iloc[0]['stock_identifier']
 print(f"Top sentiment stock: {top_stock}")
+
+# Example 2: Dual-list algorithm integration (NEW FEATURE)
+
+from complete_sentiment_pipeline import get_dual_sentiment_rankings
+
+# Your algorithm generates TWO separate lists
+positive_outlook_stocks = ['31846:01', '10349:01']  # Stocks with positive outlook
+negative_outlook_stocks = ['62169:01', '7906:01']   # Stocks with negative outlook
+
+# Get SEPARATE sentiment rankings for each list
+dual_results = get_dual_sentiment_rankings(
+    positive_outlook_stocks, 
+    negative_outlook_stocks, 
+    normalization_method='softmax'
+)
+
+# Use positive outlook rankings (sum=1.0)
+print("POSITIVE OUTLOOK SENTIMENT RANKINGS:")
+for _, row in dual_results['positive_rankings'].iterrows():
+    stock = row['stock_identifier']
+    weight = row['normalized_score']
+    print(f"  {stock}: Weight = {weight:.4f}")
+
+# Use negative outlook rankings (sum=1.0)  
+print("NEGATIVE OUTLOOK SENTIMENT RANKINGS:")
+for _, row in dual_results['negative_rankings'].iterrows():
+    stock = row['stock_identifier']
+    weight = row['normalized_score']
+    print(f"  {stock}: Weight = {weight:.4f}")
+
+# Combined usage in trading strategy
+def your_trading_algorithm():
+    # Get separate sentiment analysis for positive and negative outlook stocks
+    results = get_dual_sentiment_rankings(
+        positive_outlook_stocks=['31846:01', '10349:01'], 
+        negative_outlook_stocks=['62169:01', '7906:01']
+    )
+    
+    # Process positive outlook stocks
+    for _, row in results['positive_rankings'].iterrows():
+        stock = row['stock_identifier']
+        sentiment_weight = row['normalized_score'] 
+        # Apply positive bias to your position sizing
+        position_size = calculate_positive_position(stock, sentiment_weight)
+        execute_trade(stock, position_size, bias='positive')
+    
+    # Process negative outlook stocks
+    for _, row in results['negative_rankings'].iterrows():
+        stock = row['stock_identifier']
+        sentiment_weight = row['normalized_score']
+        # Apply negative bias to your position sizing  
+        position_size = calculate_negative_position(stock, sentiment_weight)
+        execute_trade(stock, position_size, bias='negative')
+    
+    return results
 """
