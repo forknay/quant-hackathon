@@ -1,0 +1,86 @@
+{
+  "long_positions": [
+    {
+      "company_id": "comp_324068_01W",
+      "gvkey": 324068,
+      "iid": "01W",
+      "algo_score_raw": 0.8944979860410257,
+      "algo_score_normalized": 1.0,
+      "ml_score_raw": -6.214844703674316,
+      "ml_score_normalized": 1.0,
+      "combined_score": 1.0,
+      "candidate_type": "long",
+      "portfolio_weight": 1.0
+    },
+    {
+      "company_id": "comp_318949_01W",
+      "gvkey": 318949,
+      "iid": "01W",
+      "algo_score_raw": 0.6861583110175246,
+      "algo_score_normalized": 0.0,
+      "ml_score_raw": -9.558226585388184,
+      "ml_score_normalized": 0.0,
+      "combined_score": 0.0,
+      "candidate_type": "long",
+      "portfolio_weight": 0.0
+    }
+  ],
+  "short_positions": [
+    {
+      "company_id": "comp_337023_01W",
+      "gvkey": 337023,
+      "iid": "01W",
+      "algo_score_raw": -0.01737541117480086,
+      "algo_score_normalized": 1.0,
+      "ml_score_raw": -8.371183395385742,
+      "ml_score_normalized": 1.0,
+      "combined_score": 1.0,
+      "candidate_type": "short",
+      "portfolio_weight": -1.0
+    },
+    {
+      "company_id": "comp_336928_01W",
+      "gvkey": 336928,
+      "iid": "01W",
+      "algo_score_raw": -0.013115561554062738,
+      "algo_score_normalized": 0.0,
+      "ml_score_raw": 0.03667321056127548,
+      "ml_score_normalized": 0.0,
+      "combined_score": 0.0,
+      "candidate_type": "short",
+      "portfolio_weight": -0.0
+    }
+  ],
+  "summary": {
+    "total_long_positions": 2,
+    "total_short_positions": 2,
+    "total_positions": 4,
+    "long_combined_scores": [
+      1.0,
+      0.0
+    ],
+    "short_combined_scores": [
+      1.0,
+      0.0
+    ],
+    "long_weights_sum": 1.0,
+    "short_weights_sum": -1.0,
+    "creation_date": "2025-10-05T14:15:16.867300"
+  },
+  "parameters": {
+    "algo_weight": 0.6,
+    "ml_weight": 0.4
+  },
+  "metadata": {
+    "sector": "it",
+    "target_year": 2022,
+    "target_month": 10,
+    "pipeline_version": "1.0",
+    "creation_timestamp": "2025-10-05T14:15:16.868434",
+    "year": 2022,
+    "month": 11,
+    "date": "2022-11",
+    "generated_date": "2025-10-05T22:04:22.186861",
+    "note": "Holdings copied from previous month (forward-fill)"
+  }
+}
