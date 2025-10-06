@@ -1,0 +1,159 @@
+{
+  "long_positions": [
+    {
+      "company_id": "comp_100336_01W",
+      "gvkey": 100336,
+      "iid": "01W",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": -3.5575685501098633,
+      "ml_score_normalized": 0.0,
+      "combined_score": NaN,
+      "candidate_type": "long",
+      "portfolio_weight": 0.2
+    },
+    {
+      "company_id": "comp_100418_01W",
+      "gvkey": 100418,
+      "iid": "01W",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": 0.04199006408452988,
+      "ml_score_normalized": 0.5556255116876959,
+      "combined_score": NaN,
+      "candidate_type": "long",
+      "portfolio_weight": 0.2
+    },
+    {
+      "company_id": "comp_102071_03W",
+      "gvkey": 102071,
+      "iid": "03W",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": 2.8647356033325195,
+      "ml_score_normalized": 0.9913426655698648,
+      "combined_score": NaN,
+      "candidate_type": "long",
+      "portfolio_weight": 0.2
+    },
+    {
+      "company_id": "comp_102146_01W",
+      "gvkey": 102146,
+      "iid": "01W",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": 2.920821189880371,
+      "ml_score_normalized": 1.0,
+      "combined_score": NaN,
+      "candidate_type": "long",
+      "portfolio_weight": 0.2
+    },
+    {
+      "company_id": "comp_102156_01W",
+      "gvkey": 102156,
+      "iid": "01W",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": -1.7603425979614258,
+      "ml_score_normalized": 0.2774186216451909,
+      "combined_score": NaN,
+      "candidate_type": "long",
+      "portfolio_weight": 0.2
+    }
+  ],
+  "short_positions": [
+    {
+      "company_id": "comp_100718_01W",
+      "gvkey": 100718,
+      "iid": "01W",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": -2.9711930751800537,
+      "ml_score_normalized": 0.0991697925978802,
+      "combined_score": NaN,
+      "candidate_type": "short",
+      "portfolio_weight": -0.2
+    },
+    {
+      "company_id": "comp_100730_01W",
+      "gvkey": 100730,
+      "iid": "01W",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": -2.2542834281921387,
+      "ml_score_normalized": 0.0,
+      "combined_score": NaN,
+      "candidate_type": "short",
+      "portfolio_weight": -0.2
+    },
+    {
+      "company_id": "comp_100751_01W",
+      "gvkey": 100751,
+      "iid": "01W",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": -7.524737358093262,
+      "ml_score_normalized": 0.7290595479095118,
+      "combined_score": NaN,
+      "candidate_type": "short",
+      "portfolio_weight": -0.2
+    },
+    {
+      "company_id": "comp_101024_01W",
+      "gvkey": 101024,
+      "iid": "01W",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": -9.250612258911133,
+      "ml_score_normalized": 0.9677990552980634,
+      "combined_score": NaN,
+      "candidate_type": "short",
+      "portfolio_weight": -0.2
+    },
+    {
+      "company_id": "comp_101204_01W",
+      "gvkey": 101204,
+      "iid": "01W",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": -9.483396530151367,
+      "ml_score_normalized": 1.0,
+      "combined_score": NaN,
+      "candidate_type": "short",
+      "portfolio_weight": -0.2
+    }
+  ],
+  "summary": {
+    "total_long_positions": 5,
+    "total_short_positions": 5,
+    "total_positions": 10,
+    "long_combined_scores": [
+      NaN,
+      NaN,
+      NaN,
+      NaN,
+      NaN
+    ],
+    "short_combined_scores": [
+      NaN,
+      NaN,
+      NaN,
+      NaN,
+      NaN
+    ],
+    "long_weights_sum": 1.0,
+    "short_weights_sum": -1.0,
+    "creation_date": "2025-10-05T20:25:50.086778"
+  },
+  "parameters": {
+    "algo_weight": 0.6,
+    "ml_weight": 0.4
+  },
+  "metadata": {
+    "sector": "healthcare",
+    "target_year": 2020,
+    "target_month": 2,
+    "pipeline_version": "1.0",
+    "creation_timestamp": "2025-10-05T20:25:50.086778"
+  }
+}

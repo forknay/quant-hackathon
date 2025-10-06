@@ -1,0 +1,159 @@
+{
+  "long_positions": [
+    {
+      "company_id": "comp_100035_03W",
+      "gvkey": 100035,
+      "iid": "03W",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": -4.9225287437438965,
+      "ml_score_normalized": 0.212999887366067,
+      "combined_score": NaN,
+      "candidate_type": "long",
+      "portfolio_weight": 0.2
+    },
+    {
+      "company_id": "comp_100080_01W",
+      "gvkey": 100080,
+      "iid": "01W",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": 18.819698333740234,
+      "ml_score_normalized": 1.0,
+      "combined_score": NaN,
+      "candidate_type": "long",
+      "portfolio_weight": 0.2
+    },
+    {
+      "company_id": "comp_100145_01W",
+      "gvkey": 100145,
+      "iid": "01W",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": -11.348311424255371,
+      "ml_score_normalized": 0.0,
+      "combined_score": NaN,
+      "candidate_type": "long",
+      "portfolio_weight": 0.2
+    },
+    {
+      "company_id": "comp_100155_01W",
+      "gvkey": 100155,
+      "iid": "01W",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": -7.315525531768799,
+      "ml_score_normalized": 0.13367755860718453,
+      "combined_score": NaN,
+      "candidate_type": "long",
+      "portfolio_weight": 0.2
+    },
+    {
+      "company_id": "comp_100213_01W",
+      "gvkey": 100213,
+      "iid": "01W",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": -6.167592525482178,
+      "ml_score_normalized": 0.1717288923045418,
+      "combined_score": NaN,
+      "candidate_type": "long",
+      "portfolio_weight": 0.2
+    }
+  ],
+  "short_positions": [
+    {
+      "company_id": "comp_065966_01C",
+      "gvkey": 65966,
+      "iid": "01C",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": -5.840235233306885,
+      "ml_score_normalized": 0.69655582315467,
+      "combined_score": NaN,
+      "candidate_type": "short",
+      "portfolio_weight": -0.2
+    },
+    {
+      "company_id": "comp_066431_01C",
+      "gvkey": 66431,
+      "iid": "01C",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": -8.357074737548828,
+      "ml_score_normalized": 0.976064400967196,
+      "combined_score": NaN,
+      "candidate_type": "short",
+      "portfolio_weight": -0.2
+    },
+    {
+      "company_id": "comp_066600_01W",
+      "gvkey": 66600,
+      "iid": "01W",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": -4.082308292388916,
+      "ml_score_normalized": 0.5013285715455933,
+      "combined_score": NaN,
+      "candidate_type": "short",
+      "portfolio_weight": -0.2
+    },
+    {
+      "company_id": "comp_008644_01C",
+      "gvkey": 8644,
+      "iid": "01C",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": -8.572603225708008,
+      "ml_score_normalized": 1.0,
+      "combined_score": NaN,
+      "candidate_type": "short",
+      "portfolio_weight": -0.2
+    },
+    {
+      "company_id": "comp_009728_02C",
+      "gvkey": 9728,
+      "iid": "02C",
+      "algo_score_raw": 0.1,
+      "algo_score_normalized": NaN,
+      "ml_score_raw": 0.43191292881965637,
+      "ml_score_normalized": 0.0,
+      "combined_score": NaN,
+      "candidate_type": "short",
+      "portfolio_weight": -0.2
+    }
+  ],
+  "summary": {
+    "total_long_positions": 5,
+    "total_short_positions": 5,
+    "total_positions": 10,
+    "long_combined_scores": [
+      NaN,
+      NaN,
+      NaN,
+      NaN,
+      NaN
+    ],
+    "short_combined_scores": [
+      NaN,
+      NaN,
+      NaN,
+      NaN,
+      NaN
+    ],
+    "long_weights_sum": 1.0,
+    "short_weights_sum": -1.0,
+    "creation_date": "2025-10-05T20:18:27.658750"
+  },
+  "parameters": {
+    "algo_weight": 0.6,
+    "ml_weight": 0.4
+  },
+  "metadata": {
+    "sector": "materials",
+    "target_year": 2020,
+    "target_month": 1,
+    "pipeline_version": "1.0",
+    "creation_timestamp": "2025-10-05T20:18:27.658750"
+  }
+}

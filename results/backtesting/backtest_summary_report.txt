@@ -2,31 +2,31 @@
 COMPREHENSIVE BACKTESTING RESULTS
 ================================================================================
 
-Backtesting Period: 01/2023 - 12/2023
+Backtesting Period: 01/2024 - 05/2025
 Strategy: Long top 5 + Short bottom 5 stocks per sector
 Sectors: energy, materials, industrials, cons_discretionary, cons_staples, healthcare, financials, it, telecoms, utilities, re
-Total months tracked: 12
+Total months tracked: 17
 
 PORTFOLIO PERFORMANCE METRICS
 ----------------------------------------
-Average Annual Return:     11.98%
-Annual Volatility:         1.02%
-Sharpe Ratio:              11.768
-Information Ratio:         -1.171
-Annual Alpha:              -11.83%
+Average Annual Return:     10.17%
+Annual Volatility:         1.14%
+Sharpe Ratio:              8.899
+Information Ratio:         0.339
+Annual Alpha:              4.58%
 Maximum Drawdown:          0.00%
 Win Rate:                  100.00%
 
 S&P 500 BENCHMARK COMPARISON
 ----------------------------------------
-S&P 500 Annual Return:     23.81%
-S&P 500 Annual Volatility: 10.31%
-S&P 500 Total Return:      26.00%
-Portfolio Total Return:    12.65%
+S&P 500 Annual Return:     5.59%
+S&P 500 Annual Volatility: 13.44%
+S&P 500 Total Return:      6.93%
+Portfolio Total Return:    15.41%
 
 ADDITIONAL STATISTICS
 ----------------------------------------
-Best Monthly Return:       1.42%
-Worst Monthly Return:      0.57%
-Average Monthly Return:    1.00%
+Best Monthly Return:       1.35%
+Worst Monthly Return:      0.46%
+Average Monthly Return:    0.85%
 

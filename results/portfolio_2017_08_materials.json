@@ -1,0 +1,159 @@
+{
+  "long_positions": [
+    {
+      "company_id": "comp_270894_01W",
+      "gvkey": 270894,
+      "iid": "01W",
+      "algo_score_raw": 9.497722408032576,
+      "algo_score_normalized": 0.4055302221258322,
+      "ml_score_raw": -0.9708225727081299,
+      "ml_score_normalized": 1.0,
+      "combined_score": 0.6433181332754994,
+      "candidate_type": "long",
+      "portfolio_weight": 0.2426284066194713
+    },
+    {
+      "company_id": "comp_102362_01W",
+      "gvkey": 102362,
+      "iid": "01W",
+      "algo_score_raw": 17.41000463825032,
+      "algo_score_normalized": 1.0,
+      "ml_score_raw": -32.04622268676758,
+      "ml_score_normalized": 0.0,
+      "combined_score": 0.6,
+      "candidate_type": "long",
+      "portfolio_weight": 0.22629090716045427
+    },
+    {
+      "company_id": "comp_213192_01W",
+      "gvkey": 213192,
+      "iid": "01W",
+      "algo_score_raw": 9.249947065972025,
+      "algo_score_normalized": 0.386914233935358,
+      "ml_score_raw": -4.26331901550293,
+      "ml_score_normalized": 0.8940481399850045,
+      "combined_score": 0.5897677963552166,
+      "candidate_type": "long",
+      "portfolio_weight": 0.22243181608540671
+    },
+    {
+      "company_id": "comp_273092_01W",
+      "gvkey": 273092,
+      "iid": "01W",
+      "algo_score_raw": 6.919581923929276,
+      "algo_score_normalized": 0.21182800621396236,
+      "ml_score_raw": -5.3325276374816895,
+      "ml_score_normalized": 0.859641225896873,
+      "combined_score": 0.4709532940871266,
+      "candidate_type": "long",
+      "portfolio_weight": 0.17762074691530014
+    },
+    {
+      "company_id": "comp_020488_01C",
+      "gvkey": 20488,
+      "iid": "01C",
+      "algo_score_raw": 4.100190540530878,
+      "algo_score_normalized": 0.0,
+      "ml_score_raw": -5.056066036224365,
+      "ml_score_normalized": 0.8685377035043244,
+      "combined_score": 0.3474150814017298,
+      "candidate_type": "long",
+      "portfolio_weight": 0.1310281232193675
+    }
+  ],
+  "short_positions": [
+    {
+      "company_id": "comp_281730_01W",
+      "gvkey": 281730,
+      "iid": "01W",
+      "algo_score_raw": -0.08871912074093183,
+      "algo_score_normalized": 1.0,
+      "ml_score_raw": -10.43874454498291,
+      "ml_score_normalized": 1.0,
+      "combined_score": 1.0,
+      "candidate_type": "short",
+      "portfolio_weight": -0.4215936023119248
+    },
+    {
+      "company_id": "comp_151365_01C",
+      "gvkey": 151365,
+      "iid": "01C",
+      "algo_score_raw": -0.08539431920674109,
+      "algo_score_normalized": 0.823658000213832,
+      "ml_score_raw": -2.020345449447632,
+      "ml_score_normalized": 0.087719854416838,
+      "combined_score": 0.5292827418950343,
+      "candidate_type": "short",
+      "portfolio_weight": -0.22314221779706023
+    },
+    {
+      "company_id": "comp_242803_01W",
+      "gvkey": 242803,
+      "iid": "01W",
+      "algo_score_raw": -0.07752289741891336,
+      "algo_score_normalized": 0.40617074722992874,
+      "ml_score_raw": -4.8162455558776855,
+      "ml_score_normalized": 0.3907043206062265,
+      "combined_score": 0.3999841765804478,
+      "candidate_type": "short",
+      "portfolio_weight": -0.16863076987232
+    },
+    {
+      "company_id": "comp_286294_01W",
+      "gvkey": 286294,
+      "iid": "01W",
+      "algo_score_raw": -0.06986484020525466,
+      "algo_score_normalized": 0.0,
+      "ml_score_raw": -7.106785297393799,
+      "ml_score_normalized": 0.6389241905768211,
+      "combined_score": 0.25556967623072846,
+      "candidate_type": "short",
+      "portfolio_weight": -0.1077465404438051
+    },
+    {
+      "company_id": "comp_288261_01W",
+      "gvkey": 288261,
+      "iid": "01W",
+      "algo_score_raw": -0.07574473323252875,
+      "algo_score_normalized": 0.3118598461578961,
+      "ml_score_raw": -1.2108783721923828,
+      "ml_score_normalized": 0.0,
+      "combined_score": 0.18711590769473765,
+      "candidate_type": "short",
+      "portfolio_weight": -0.07888686957489005
+    }
+  ],
+  "summary": {
+    "total_long_positions": 5,
+    "total_short_positions": 5,
+    "total_positions": 10,
+    "long_combined_scores": [
+      0.6433181332754994,
+      0.6,
+      0.5897677963552166,
+      0.4709532940871266,
+      0.3474150814017298
+    ],
+    "short_combined_scores": [
+      1.0,
+      0.5292827418950343,
+      0.3999841765804478,
+      0.25556967623072846,
+      0.18711590769473765
+    ],
+    "long_weights_sum": 1.0,
+    "short_weights_sum": -1.0000000000000002,
+    "creation_date": "2025-10-05T18:32:18.286073"
+  },
+  "parameters": {
+    "algo_weight": 0.6,
+    "ml_weight": 0.4
+  },
+  "metadata": {
+    "sector": "materials",
+    "target_year": 2017,
+    "target_month": 8,
+    "pipeline_version": "1.0",
+    "creation_timestamp": "2025-10-05T18:32:18.286073"
+  }
+}
