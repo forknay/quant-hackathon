@@ -9,11 +9,12 @@ Total months tracked: 125
 
 PORTFOLIO PERFORMANCE METRICS
 ----------------------------------------
-Average Annual Return:     10.37%
-Annual Volatility:         1.16%
-Sharpe Ratio:              8.935
-Information Ratio:         0.376
-Annual Alpha:              4.87%
+Average Annual Return:     11.04%
+Annual Volatility:         1.06%
+Sharpe Ratio:              10.453
+Information Ratio:         0.425
+Tracking Error:            13.04%
+Annual Alpha:              5.54%
 Maximum Drawdown:          0.00%
 Win Rate:                  71.20%
 OOS R² vs S&P 500:         0.0000
@@ -24,11 +25,11 @@ S&P 500 BENCHMARK COMPARISON
 S&P 500 Annual Return:     6.13%
 S&P 500 Annual Volatility: 12.91%
 S&P 500 Total Return:      73.60%
-Portfolio Total Return:    115.01%
+Portfolio Total Return:    125.85%
 
 ADDITIONAL STATISTICS
 ----------------------------------------
-Best Monthly Return:       1.58%
-Worst Monthly Return:      0.18%
-Average Monthly Return:    0.86%
+Best Monthly Return:       1.85%
+Worst Monthly Return:      0.20%
+Average Monthly Return:    0.92%
 

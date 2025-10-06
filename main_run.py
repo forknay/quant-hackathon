@@ -66,7 +66,7 @@ class MainPipelineRunner:
         
         # Required input files
         self.required_files = [
-            'ret_sample.csv',  # Main data file
+            'Data/ret_sample.csv',  # Main data file
             'sectorinfo.csv'   # Sector mapping file (renamed from sector file)
         ]
         

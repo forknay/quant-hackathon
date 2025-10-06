@@ -404,6 +404,7 @@ class ComprehensiveBacktester:
             # Risk-adjusted metrics
             'sharpe_ratio': (portfolio_returns.mean() / portfolio_returns.std()) * np.sqrt(12) if portfolio_returns.std() > 0 else 0,
             'information_ratio': (excess_returns.mean() / excess_returns.std()) * np.sqrt(12) if excess_returns.std() > 0 else 0,
+            'tracking_error': excess_returns.std() * np.sqrt(12),  # Annualized tracking error
             
             # OOS R² metrics
             'oos_r2_vs_sp500': oos_r2_portfolio,
@@ -430,6 +431,8 @@ class ComprehensiveBacktester:
         }
         
         print(f"   Calculated {len(metrics)} performance metrics")
+        print(f"   Information Ratio: {metrics['information_ratio']:.4f}")
+        print(f"   Tracking Error: {metrics['tracking_error']:.4f}")
         print(f"   OOS R² vs S&P 500: {oos_r2_portfolio:.4f}")
         print(f"   OOS R² (excess returns): {oos_r2_excess:.4f}")
         return metrics
@@ -523,6 +526,7 @@ class ComprehensiveBacktester:
             f.write(f"Annual Volatility:         {metrics.get('annual_volatility', 0):.2%}\n")
             f.write(f"Sharpe Ratio:              {metrics.get('sharpe_ratio', 0):.3f}\n")
             f.write(f"Information Ratio:         {metrics.get('information_ratio', 0):.3f}\n")
+            f.write(f"Tracking Error:            {metrics.get('tracking_error', 0):.2%}\n")
             f.write(f"Annual Alpha:              {metrics.get('annual_alpha', 0):.2%}\n")
             f.write(f"Maximum Drawdown:          {metrics.get('max_drawdown', 0):.2%}\n")
             f.write(f"Win Rate:                  {metrics.get('win_rate', 0):.2%}\n")
@@ -579,6 +583,8 @@ class ComprehensiveBacktester:
             print(f"   Portfolio Annual Volatility: {metrics.get('annual_volatility', 0):.2%}")
             print(f"   Annual Alpha vs S&P 500: {metrics.get('annual_alpha', 0):.2%}")
             print(f"   Sharpe Ratio: {metrics.get('sharpe_ratio', 0):.3f}")
+            print(f"   Information Ratio: {metrics.get('information_ratio', 0):.3f}")
+            print(f"   Tracking Error: {metrics.get('tracking_error', 0):.2%}")
             print(f"   OOS R² vs S&P 500: {metrics.get('oos_r2_vs_sp500', 0):.4f}")
             print(f"   OOS R² (Excess Returns): {metrics.get('oos_r2_excess_returns', 0):.4f}")
             print(f"   Results saved to: {self.backtest_dir}")
