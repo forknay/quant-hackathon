@@ -385,7 +385,10 @@ class ComprehensiveBacktester:
         
         # Calculate OOS R² (Out-of-Sample R-squared)
         oos_r2_portfolio = self._calculate_oos_r2(portfolio_returns, sp500_returns)
-        oos_r2_excess = self._calculate_oos_r2(excess_returns, np.zeros_like(excess_returns))
+        
+        # For excess returns, calculate R² vs mean excess return (more meaningful than vs zero)
+        mean_excess = np.full_like(excess_returns, excess_returns.mean())
+        oos_r2_excess = self._calculate_oos_r2(excess_returns, mean_excess)
         
         # Calculate metrics
         metrics = {
@@ -449,18 +452,32 @@ class ComprehensiveBacktester:
         Returns:
             float: OOS R² value
         """
-        y_actual_values = y_actual.values
-        y_predicted_values = y_predicted.values
+        y_actual_values = y_actual.values if hasattr(y_actual, 'values') else y_actual
+        y_predicted_values = y_predicted.values if hasattr(y_predicted, 'values') else y_predicted
         
+        # Handle edge cases
+        if len(y_actual_values) == 0 or len(y_predicted_values) == 0:
+            return 0.0
+            
         # OOS R² formula: 1 - sum((actual - predicted)²) / sum(actual²)
         # This measures how much better the predictions are compared to just predicting zero
         numerator = np.sum(np.square(y_actual_values - y_predicted_values))
         denominator = np.sum(np.square(y_actual_values))
         
-        if denominator == 0:
-            return 0.0
+        # Handle zero or near-zero denominator (when actual values are all near zero)
+        if np.isclose(denominator, 0, atol=1e-12):
+            # If actual values are near zero, check if predicted values are also near zero
+            if np.isclose(numerator, 0, atol=1e-12):
+                return 1.0  # Perfect prediction of near-zero values
+            else:
+                return 0.0  # Poor prediction when actual values are near zero
             
         oos_r2 = 1 - (numerator / denominator)
+        
+        # Handle NaN or infinite results
+        if np.isnan(oos_r2) or np.isinf(oos_r2):
+            return 0.0
+            
         return oos_r2
     
     def save_results(self, returns_df: pd.DataFrame, sp500_df: pd.DataFrame, metrics: Dict):
