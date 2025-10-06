@@ -1,0 +1,30 @@
+{
+  "risk_metrics": {
+    "max_monthly_loss": -0.0005005858784473,
+    "max_monthly_loss_pct": -0.05005858784473,
+    "max_loss_date": "2016-10",
+    "max_monthly_gain": 0.0172098432431477,
+    "max_monthly_gain_pct": 1.7209843243147698,
+    "mean_monthly_return": 0.009039066704361264,
+    "monthly_volatility": 0.003578814153304794,
+    "annual_volatility": 0.012397375888740991,
+    "downside_volatility": 0.0005005858784473,
+    "negative_months": 1,
+    "negative_months_pct": 1.1235955056179776,
+    "var_5pct": 0.0038632624180695,
+    "var_1pct": 0.001243339839308284,
+    "max_drawdown": -0.0005005858784472537,
+    "max_drawdown_pct": -0.050058587844725375,
+    "sharpe_ratio": 8.749335458227415
+  },
+  "turnover_metrics": {
+    "avg_monthly_turnover": 0.6268483875636479,
+    "median_monthly_turnover": 0.6193776267548958,
+    "max_monthly_turnover": 1.8987341772151898,
+    "min_monthly_turnover": 0.0,
+    "turnover_volatility": 0.5018869878256521,
+    "avg_positions_per_month": 110.80645161290323,
+    "annual_turnover": 7.522180650763775
+  },
+  "analysis_date": "2025-10-05T23:17:21.017521"
+}
