@@ -383,6 +383,10 @@ class ComprehensiveBacktester:
         sp500_returns = combined_df['sp500_return']
         excess_returns = portfolio_returns - sp500_returns
         
+        # Calculate OOS R² (Out-of-Sample R-squared)
+        oos_r2_portfolio = self._calculate_oos_r2(portfolio_returns, sp500_returns)
+        oos_r2_excess = self._calculate_oos_r2(excess_returns, np.zeros_like(excess_returns))
+        
         # Calculate metrics
         metrics = {
             # Basic return metrics
@@ -397,6 +401,10 @@ class ComprehensiveBacktester:
             # Risk-adjusted metrics
             'sharpe_ratio': (portfolio_returns.mean() / portfolio_returns.std()) * np.sqrt(12) if portfolio_returns.std() > 0 else 0,
             'information_ratio': (excess_returns.mean() / excess_returns.std()) * np.sqrt(12) if excess_returns.std() > 0 else 0,
+            
+            # OOS R² metrics
+            'oos_r2_vs_sp500': oos_r2_portfolio,
+            'oos_r2_excess_returns': oos_r2_excess,
             
             # Benchmark comparison
             'sp500_avg_monthly_return': sp500_returns.mean(),
@@ -419,6 +427,8 @@ class ComprehensiveBacktester:
         }
         
         print(f"   Calculated {len(metrics)} performance metrics")
+        print(f"   OOS R² vs S&P 500: {oos_r2_portfolio:.4f}")
+        print(f"   OOS R² (excess returns): {oos_r2_excess:.4f}")
         return metrics
     
     def _calculate_max_drawdown(self, returns: pd.Series) -> float:
@@ -427,6 +437,31 @@ class ComprehensiveBacktester:
         rolling_max = cumulative.cummax()
         drawdown = (cumulative - rolling_max) / rolling_max
         return drawdown.min()
+    
+    def _calculate_oos_r2(self, y_actual: pd.Series, y_predicted: pd.Series) -> float:
+        """
+        Calculate Out-of-Sample R² following the methodology from penalized_linear_hackathon.py
+        
+        Args:
+            y_actual: Actual returns/values
+            y_predicted: Predicted returns/values (or benchmark for comparison)
+            
+        Returns:
+            float: OOS R² value
+        """
+        y_actual_values = y_actual.values
+        y_predicted_values = y_predicted.values
+        
+        # OOS R² formula: 1 - sum((actual - predicted)²) / sum(actual²)
+        # This measures how much better the predictions are compared to just predicting zero
+        numerator = np.sum(np.square(y_actual_values - y_predicted_values))
+        denominator = np.sum(np.square(y_actual_values))
+        
+        if denominator == 0:
+            return 0.0
+            
+        oos_r2 = 1 - (numerator / denominator)
+        return oos_r2
     
     def save_results(self, returns_df: pd.DataFrame, sp500_df: pd.DataFrame, metrics: Dict):
         """Save all results to files"""
@@ -473,7 +508,9 @@ class ComprehensiveBacktester:
             f.write(f"Information Ratio:         {metrics.get('information_ratio', 0):.3f}\n")
             f.write(f"Annual Alpha:              {metrics.get('annual_alpha', 0):.2%}\n")
             f.write(f"Maximum Drawdown:          {metrics.get('max_drawdown', 0):.2%}\n")
-            f.write(f"Win Rate:                  {metrics.get('win_rate', 0):.2%}\n\n")
+            f.write(f"Win Rate:                  {metrics.get('win_rate', 0):.2%}\n")
+            f.write(f"OOS R² vs S&P 500:         {metrics.get('oos_r2_vs_sp500', 0):.4f}\n")
+            f.write(f"OOS R² (Excess Returns):   {metrics.get('oos_r2_excess_returns', 0):.4f}\n\n")
             
             f.write("S&P 500 BENCHMARK COMPARISON\n")
             f.write("-" * 40 + "\n")
@@ -525,6 +562,8 @@ class ComprehensiveBacktester:
             print(f"   Portfolio Annual Volatility: {metrics.get('annual_volatility', 0):.2%}")
             print(f"   Annual Alpha vs S&P 500: {metrics.get('annual_alpha', 0):.2%}")
             print(f"   Sharpe Ratio: {metrics.get('sharpe_ratio', 0):.3f}")
+            print(f"   OOS R² vs S&P 500: {metrics.get('oos_r2_vs_sp500', 0):.4f}")
+            print(f"   OOS R² (Excess Returns): {metrics.get('oos_r2_excess_returns', 0):.4f}")
             print(f"   Results saved to: {self.backtest_dir}")
             
         except Exception as e:
