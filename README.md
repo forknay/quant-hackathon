@@ -204,3 +204,8 @@ Based on 2015-2025 backtesting (125 months):
 - Generated portfolio results (`results/`).
 
 Use object storage (S3 / GCS / Azure / internal share) or regenerate locally.
+
+
+## License
+
+Hackathon submission = Public Domain / Free
