@@ -446,7 +446,7 @@ class ComprehensiveBacktester:
     
     def _calculate_oos_r2(self, y_actual: pd.Series, y_predicted: pd.Series) -> float:
         """
-        Calculate Out-of-Sample R² following the methodology from penalized_linear_hackathon.py
+        Calculate Out-of-Sample R² using standard statistical methodology
         
         Args:
             y_actual: Actual returns/values
